@@ -2,5 +2,8 @@
 #show: slides.with(
   title: "Capstone",
   subtitle: "Short project description",
-  authors: ("Samuel Shuert",)
+  authors: ("Samuel Shuert", "Matthew Schardt"),
+  ratio: 16/9,
+  toc: false,
+  title-color: rgb("#CC0000")
 )
