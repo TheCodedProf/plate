@@ -38,6 +38,7 @@ nilla.create (
               pkgs.devenv
               pkgs.typst
               pkgs.tinymist
+              pkgs.cloudflared
             ];
           };
       };
