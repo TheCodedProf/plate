@@ -1,0 +1,6 @@
+Typst docs:
+- https://typst.app/docs/
+- https://typst.app/universe/package/diatypst
+- https://mdwm.org/diatypst/styling.html
+
+Repo: https://github.com/TheCodedProf/CMU-Capstone

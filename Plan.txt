@@ -1,0 +1,43 @@
+CMU_Capstone (need a name for this)
+Calendar (own events no google integration)
+Countdown Widget
+RSS/Atom subs
+
+1. Auth + accounts
+    email/password
+    session handling
+    basic user profile
+
+2. Calendar
+    create/edit/delete events
+    All day/timed events
+    repeating events (daily/weekly/monthly)
+    (?) share calendar
+
+3. Todos
+    Create/Complete/Priority level/Due
+    Filters (All/today/complete)
+    Sort (due date/status)
+    Show in calendar
+
+4. Countdown Widget
+    Create/edit/delete countdowns
+    displays X years, y months, z days, hh:mm:ss till {event name}
+
+5. RSS/Atom
+    subscribe to a feed url
+    backend fetches + parsing + storage
+    UI shows new/unread items with a mark read feature
+
+Architecture
+    Next.js (app router)
+        UI routes + API routes
+        Better-auth with basic auth
+    Postgress backend with drizzle ORM
+
+Data model
+    users (id: uuid, username, password (hashed), avatar/gravatar)
+    calendar_events (user_id, title, start_at, end_at, all_day, notes, location, TZ)
+    todos (user_id, title, completed, due_at, priority)
+    countdown (user_id, title, target_date)
+    feeds (user_id, url, title)
