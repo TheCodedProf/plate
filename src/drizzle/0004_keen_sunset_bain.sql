@@ -1,0 +1,1 @@
+ALTER TABLE "calendars" ALTER COLUMN "default" SET NOT NULL;
