@@ -1,5 +1,18 @@
 {
   "pins": {
+    "nilla": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "nilla-nix",
+        "repo": "nilla"
+      },
+      "branch": "main",
+      "submodules": false,
+      "revision": "6d814dafa6f397ac2087333e5515c617faccba6f",
+      "url": "https://github.com/nilla-nix/nilla/archive/6d814dafa6f397ac2087333e5515c617faccba6f.tar.gz",
+      "hash": "sha256-A4zg3po1tyfh1if+LIllKtUGoWLFSwJSztvH2MG22qU="
+    },
     "nixpkgs": {
       "type": "Channel",
       "name": "nixpkgs-unstable",
