@@ -36,8 +36,25 @@ Architecture
     Postgress backend with drizzle ORM
 
 Data model
-    users (id: uuid, username, password (hashed), avatar/gravatar)
-    calendar_events (user_id, title, start_at, end_at, all_day, notes, location, TZ)
-    todos (user_id, title, completed, due_at, priority)
+    users (id: uuid, username, password (hashed), avatar/gravatar) done
+    calendar_events (user_id, title, start_at, end_at, all_day, notes, location) done
+    todos (user_id, title, completed, due_at, priority) done
     countdown (user_id, title, target_date)
-    feeds (user_id, url, title)
+    feeds (user_id, url, title) done
+
+sprint 1:
+- Calendar Widget
+- data models
+
+sprint 2:
+- User auth
+- add/edit/delete events
+
+sprint 3:
+- todos
+- countdowns
+- feeds
+
+sprint 4:
+- reactivity
+- modularity
