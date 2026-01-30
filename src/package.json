@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "prod": "bunx drizzle-kit migrate && bun build && bun start"
   },
   "dependencies": {
     "@better-auth/passkey": "^1.4.17",
