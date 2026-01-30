@@ -12,6 +12,10 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/auth/signin", request.url));
   }
 
+  if (!pathSegments.length) {
+    return NextResponse.redirect(new URL("/dashboard/main", request.url));
+  }
+
   if (pathSegments[0] === "dashboard" && pathSegments.length === 1) {
     return NextResponse.redirect(new URL("/dashboard/main", request.url));
   }
@@ -30,5 +34,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:id*", "/auth/:action"],
+  matcher: ["/dashboard/:id*", "/auth/:action", "/"],
 };
