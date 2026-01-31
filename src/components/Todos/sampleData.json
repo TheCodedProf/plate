@@ -1,0 +1,82 @@
+[
+  {
+    "id": "a1f2c3d4-e001-4a11-9b01-111111111111",
+    "title": "Prepare capstone project outline",
+    "description": "Write the high-level outline covering problem statement, solution, and demo flow.",
+    "dueDate": "2026-02-01T23:59:00-05:00",
+    "completed": true,
+    "userId": "demo-user-001"
+  },
+  {
+    "id": "b2f3c4d5-e002-4b22-9c02-222222222222",
+    "title": "Finish calendar event seed data",
+    "description": "Create realistic overlapping and multi-day calendar events for demo purposes.",
+    "dueDate": "2026-02-02T18:00:00-05:00",
+    "completed": true,
+    "userId": "demo-user-001"
+  },
+  {
+    "id": "c3f4d5e6-e003-4c33-9d03-333333333333",
+    "title": "Implement todo list UI",
+    "description": "Add create, complete, and delete functionality for todos.",
+    "dueDate": "2026-02-04T23:59:00-05:00",
+    "completed": false,
+    "userId": "demo-user-001"
+  },
+  {
+    "id": "d4f5e6f7-e004-4d44-9e04-444444444444",
+    "title": "Review database schema",
+    "description": "Double-check events, calendars, and todos relationships.",
+    "dueDate": "2026-02-03T17:00:00-05:00",
+    "completed": true,
+    "userId": "demo-user-001"
+  },
+  {
+    "id": "e5f6a7b8-e005-4e55-9f05-555555555555",
+    "title": "Add completed-state styling",
+    "description": "Visually distinguish completed todos (strikethrough, opacity, etc).",
+    "dueDate": "2026-02-05T20:00:00-05:00",
+    "completed": false,
+    "userId": "demo-user-001"
+  },
+  {
+    "id": "f6a7b8c9-e006-4f66-8a06-666666666666",
+    "title": "Test mobile layout",
+    "description": "Verify calendar and todos look good on smaller screens.",
+    "dueDate": "2026-02-06T16:00:00-05:00",
+    "completed": false,
+    "userId": "demo-user-001"
+  },
+  {
+    "id": "07b8c9d0-e007-4067-8b07-777777777777",
+    "title": "Prepare presentation slides",
+    "description": "Create slides explaining features, architecture, and demo flow.",
+    "dueDate": "2026-02-07T22:00:00-05:00",
+    "completed": false,
+    "userId": "demo-user-001"
+  },
+  {
+    "id": "18c9d0e1-e008-4178-8c08-888888888888",
+    "title": "Practice live demo",
+    "description": "Run through creating events, overlaps, and completing todos.",
+    "dueDate": "2026-02-08T18:00:00-05:00",
+    "completed": false,
+    "userId": "demo-user-001"
+  },
+  {
+    "id": "29d0e1f2-e009-4289-8d09-999999999999",
+    "title": "Fix last-minute bugs",
+    "description": "Address any UI or data issues discovered during demo practice.",
+    "dueDate": "2026-02-09T09:00:00-05:00",
+    "completed": false,
+    "userId": "demo-user-001"
+  },
+  {
+    "id": "3ae1f203-e010-439a-8e10-aaaaaaaaaaaa",
+    "title": "Submit final capstone project",
+    "description": "Upload final deliverables and verify submission confirmation.",
+    "dueDate": "2026-02-09T23:59:00-05:00",
+    "completed": false,
+    "userId": "demo-user-001"
+  }
+]
