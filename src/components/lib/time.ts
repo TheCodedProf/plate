@@ -47,7 +47,7 @@ export function checkOverlap(
 }
 
 export const dateString = (date: Date) => {
-  return new Date(date).toLocaleDateString().slice(0, 10);
+  return new Date(date).toLocaleDateString("en-US").slice(0, 10);
 };
 
 export const getDatesBetween = (startDate: Date, endDate: Date): Date[] => {

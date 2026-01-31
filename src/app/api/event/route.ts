@@ -151,10 +151,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const event = await db
-    .delete(calendarEvents)
-    .where(eq(calendarEvents.id, id))
-    .returning();
+  await db.delete(calendarEvents).where(eq(calendarEvents.id, id));
 
-  return NextResponse.json(event[0], { status: 204 });
+  return new Response(null, { status: 204 });
 }

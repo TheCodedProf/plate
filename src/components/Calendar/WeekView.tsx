@@ -1,4 +1,5 @@
-import { Dispatch, SetStateAction, useEffect, useMemo } from "react";
+"use client";
+import { Dispatch, SetStateAction, useMemo } from "react";
 import { CalendarEvent } from "../lib/CalendarEvent";
 import { dateString, formatTimeLocal, getEventsByDay } from "../lib/time";
 import { DaySummary } from "./DaySummary";
@@ -66,16 +67,12 @@ export default function WeekView({
   view,
   setView,
   openModal,
-  setDisplayedDateRange,
-  dateRange,
 }: {
   events: (CalendarEvent & { color: string })[];
   settings: typeof settingsModel.$inferSelect;
   view: Date;
   setView: Dispatch<SetStateAction<Date>>;
   openModal: (event?: typeof calendarEvents.$inferInsert) => void;
-  setDisplayedDateRange: Dispatch<SetStateAction<[Date, Date]>>;
-  dateRange: [Date, Date];
 }) {
   const eventsByDay = useMemo(() => {
     return getEventsByDay(events);
@@ -89,23 +86,6 @@ export default function WeekView({
     );
     return buildWeek(startDate, eventsByDay);
   }, [eventsByDay, view, settings]);
-
-  useEffect(() => {
-    const start = getWeekStartDate(
-      view.getFullYear(),
-      getWeek(view, settings.weekStart),
-      settings.weekStart,
-    );
-    const week = buildWeek(start, new Map());
-    const startDate = week[0].date;
-    const endDate = week[week.length - 1].date;
-    if (
-      dateRange[0].getTime() !== startDate.getTime() ||
-      dateRange[1].getTime() !== endDate.getTime()
-    ) {
-      setDisplayedDateRange([startDate, endDate]);
-    }
-  }, [view, dateRange, setDisplayedDateRange, settings]);
 
   const selectedEvents = useMemo(() => {
     return eventsByDay.get(dateString(view)) ?? [];
@@ -136,7 +116,7 @@ export default function WeekView({
                 {day.events?.map((event, index) => (
                   <div
                     key={index}
-                    className={`bg-ctp-overlay2 p-1 rounded-md w-full text-xs text-ctp-base outline-2 outline-ctp-${event.color}`}
+                    className={`p-1 rounded-md w-full text-xs text-ctp-base bg-ctp-${event.color}`}
                   >
                     {event.allDay
                       ? "All Day"

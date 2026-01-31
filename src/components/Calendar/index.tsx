@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Dispatch, SetStateAction, useEffect } from "react";
+import { useState, Dispatch, SetStateAction, useEffect, useRef } from "react";
 import { Button } from "../lib/Button";
 import DayView from "./DayView";
 import MonthView from "./MonthView";
@@ -12,7 +12,6 @@ import {
 } from "@/lib/db";
 import { EventModal } from "./EventModal";
 import { CalendarModal } from "./CalendarModal";
-import { dateString } from "../lib/time";
 
 interface Props {
   initialMonth?: Date;
@@ -30,31 +29,39 @@ export function fromLocalDateTimeValue(v: string): Date {
   return new Date(v);
 }
 
+function DateSkeleton() {
+  return <div className="w-32 h-6 bg-ctp-surface1 rounded animate-pulse"></div>;
+}
+
 export function CalendarWidget({ initialMonth, settings }: Props) {
   const [view, setView] = useState<Date>(initialMonth ?? new Date());
   const [selectedView, setSelectedView] = useState<"day" | "week" | "month">(
     "month",
   );
-  const [displayedDateRange, setDisplayedDateRange] = useState<[Date, Date]>([
-    new Date(),
-    new Date(),
-  ]);
   const [update, setUpdate] = useState(false);
   const [events, setEvents] = useState<
     (typeof eventModel.$inferSelect & { color: string })[]
   >([]);
   const [showCalendar, setShowCalendar] = useState(false);
+
+  const mounted = useRef(false);
+
   useEffect(() => {
-    fetch(
-      `/api/events?start=${dateString(displayedDateRange[0])}&end=${dateString(displayedDateRange[1])}`,
-    )
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/events")
       .then((res) => {
         return res.json();
       })
       .then((data) => {
         setEvents(data);
       });
-  }, [update, displayedDateRange]);
+  }, [update]);
 
   // keep a local copy so edits reflect instantly in UI
   const [localEvents, setLocalEvents] =
@@ -102,29 +109,36 @@ export function CalendarWidget({ initialMonth, settings }: Props) {
     setEditorOpen(true);
   }
 
+  const getViewDisplayText = () => {
+    if (!mounted) return null;
+
+    if (selectedView === "day") {
+      return view.toLocaleDateString();
+    } else if (selectedView === "week") {
+      return `CW: ${getWeek(view) % 52}`;
+    } else if (selectedView === "month") {
+      return view.toLocaleDateString("default", {
+        month: "long",
+        year: "numeric",
+      });
+    }
+    return "";
+  };
+
   return (
-    <div className="border-2 rounded border-ctp-overlay2 w-2/3 h-1/2 flex flex-col items-center gap-1">
-      <div className="flex justify-between items-center w-[95%] h-full m-4">
-        <div className="flex items-center gap-2 w-full h-12">
+    <div className="border-2 rounded border-ctp-overlay2 col-span-8 row-span-4 flex flex-col items-center gap-1">
+      <div className="grid grid-cols-3 items-center w-full h-fit m-1">
+        <div className="flex items-center gap-2 w-full h-12 pl-4">
           <Button onClick={() => prev(setView, selectedView)}>&lt;</Button>
           <Button onClick={() => today(setView)}>&#128197;</Button>
           <Button onClick={() => next(setView, selectedView)}>&gt;</Button>
           <Button onClick={() => setShowCalendar(true)}>New Calendar</Button>
         </div>
 
-        <div className="w-40 text-ctp-text text-right mr-4">
-          {selectedView === "day"
-            ? view.toLocaleDateString()
-            : selectedView === "week"
-              ? `CW: ${getWeek(view) % 52}`
-              : selectedView === "month"
-                ? view.toLocaleDateString("default", {
-                    month: "long",
-                    year: "numeric",
-                  })
-                : ""}
+        <div className="w-full text-ctp-text text-center">
+          {mounted ? getViewDisplayText() : <DateSkeleton />}
         </div>
-        <div className="rounded-full border border-ctp-surface1 bg-ctp-surface0 w-1/4 h-8 flex justify-between items-center text-ctp-text">
+        <div className="rounded-full border border-ctp-surface1 bg-ctp-surface0 w-50 h-8 flex justify-between items-center text-ctp-text justify-self-end mr-4">
           <button
             className={
               "rounded-full h-7 text-center cursor-pointer px-2" +
@@ -163,15 +177,13 @@ export function CalendarWidget({ initialMonth, settings }: Props) {
 
       <div className="h-0 w-9/10 border-t border-t-ctp-overlay2 bg-none"></div>
 
-      <div className="h-134.5 w-full overflow-hidden">
+      <div className="h-full w-full overflow-hidden">
         {selectedView === "day" ? (
           <DayView
             events={localEvents}
             view={view}
             settings={settings}
             openModal={openModal}
-            setDisplayedDateRange={setDisplayedDateRange}
-            dateRange={displayedDateRange}
           />
         ) : selectedView === "week" ? (
           <WeekView
@@ -180,8 +192,6 @@ export function CalendarWidget({ initialMonth, settings }: Props) {
             view={view}
             setView={setView}
             openModal={openModal}
-            setDisplayedDateRange={setDisplayedDateRange}
-            dateRange={displayedDateRange}
           />
         ) : (
           <MonthView
@@ -190,8 +200,6 @@ export function CalendarWidget({ initialMonth, settings }: Props) {
             view={view}
             setView={setView}
             openModal={openModal}
-            setDisplayedDateRange={setDisplayedDateRange}
-            dateRange={displayedDateRange}
           />
         )}
       </div>

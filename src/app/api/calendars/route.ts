@@ -18,21 +18,18 @@ export async function GET(_request: Request) {
     where: (calendar, { eq }) => eq(calendar.userId, session.user.id),
   });
 
-  let returning;
   if (calendars.length === 0) {
-    returning = await db
-      .insert(calendarDb)
-      .values({
-        userId: session.user.id,
-        name: "Default calendar",
-        color: "lavender",
-        default: true,
-      })
-      .returning();
-  }
-
-  if (returning) {
-    calendars.push(returning[0]);
+    return NextResponse.json(
+      await db
+        .insert(calendarDb)
+        .values({
+          userId: session.user.id,
+          name: "Default calendar",
+          color: "lavender",
+          default: true,
+        })
+        .returning(),
+    );
   }
 
   return NextResponse.json(calendars);
