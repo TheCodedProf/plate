@@ -1,5 +1,6 @@
 "use client";
 import { CalendarWidget } from "@/components/Calendar";
+import TodoWidget from "@/components/Todo/TodoWidget";
 import { settings as settingsModel } from "@db";
 import { useParams, useRouter } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
@@ -46,7 +47,8 @@ export default function DashboardPage() {
       <main className="h-full w-full">
         <Suspense fallback={<Loading />}>
           <Container>
-            <CalendarWidget settings={settings!}></CalendarWidget>
+            <CalendarWidget settings={settings!}></CalendarWidget>+{" "}
+            <TodoWidget></TodoWidget>
           </Container>
         </Suspense>
       </main>
