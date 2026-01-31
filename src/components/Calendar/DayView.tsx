@@ -1,4 +1,5 @@
-import { ReactNode, Dispatch, SetStateAction, useEffect, useMemo } from "react";
+"use client";
+import { ReactNode, useMemo } from "react";
 import { CalendarEvent } from "../lib/CalendarEvent";
 import { checkOverlap } from "../lib/time";
 import {
@@ -29,7 +30,7 @@ function DayEvent(
   return (
     <button
       onClick={() => openModal(event)}
-      className={`rounded text-ctp-text bg-ctp-surface1 hover:bg-ctp-surface2 px-2 cursor-pointer text-left align-text-top m-2 outline-2 outline-ctp-${event.color}`}
+      className={`rounded text-ctp-base hover:bg-ctp-surface2 px-2 cursor-pointer text-left align-text-top m-2 bg-ctp-${event.color}`}
       key={key}
       style={{
         gridColumnStart: left,
@@ -94,8 +95,6 @@ export default function DayView({
   view,
   settings,
   openModal,
-  setDisplayedDateRange,
-  dateRange,
 }: {
   events: Array<CalendarEvent & { color: string }>;
   view: Date;
@@ -103,8 +102,6 @@ export default function DayView({
   openModal: (
     initialEvent?: Partial<typeof calendarEvents.$inferInsert>,
   ) => void;
-  setDisplayedDateRange: Dispatch<SetStateAction<[Date, Date]>>;
-  dateRange: [Date, Date];
 }) {
   /* get visible timespan from selected date */
   const timespan: [Date, Date] = useMemo(() => {
@@ -114,12 +111,6 @@ export default function DayView({
     ts.push(addDates(ts[0], day));
     return ts as [Date, Date];
   }, [view, settings.dayStartHour]);
-
-  useEffect(() => {
-    if (dateRange[0] !== timespan[0] || dateRange[1] !== timespan[1]) {
-      setDisplayedDateRange(timespan);
-    }
-  }, [timespan, setDisplayedDateRange, dateRange]);
 
   interface relativeEvent {
     event: CalendarEvent & { color: string };
@@ -240,14 +231,14 @@ export default function DayView({
   const event_grid: ReactNode = (
     <div
       //onLoad={() => scrollTo({ top: 100, behavior: "instant" })}
-      className="w-full z-1 grid items-start p-1"
-      style={{
-        minHeight: "max-content",
-        alignItems: "stretch",
-        //justifyItems: "start",
-        gridAutoColumns: "max-content " + "1fr ".repeat(grid_cols),
-        gridTemplateRows: grid_row_str,
-      }}
+      className="w-full z-1 grid p-1 min-h-max items-stretch"
+      style={Object.assign(
+        {
+          gridAutoColumns: "max-content " + "1fr ".repeat(grid_cols),
+          gridTemplateRows: grid_row_str,
+        },
+        !filtered_events.length ? { height: "100%" } : {},
+      )}
     >
       {time_marks}
       {filtered_events.map((event, i) => {

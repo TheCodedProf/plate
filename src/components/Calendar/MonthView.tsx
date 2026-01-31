@@ -1,4 +1,5 @@
-import { Dispatch, SetStateAction, useEffect, useMemo } from "react";
+"use client";
+import { Dispatch, SetStateAction, useMemo } from "react";
 import { CalendarEvent } from "../lib/CalendarEvent";
 import { dateString, getEventsByDay } from "../lib/time";
 import { DaySummary } from "./DaySummary";
@@ -10,8 +11,6 @@ type Props = {
   view: Date;
   setView: Dispatch<SetStateAction<Date>>;
   openModal: (event?: typeof calendarEvents.$inferInsert) => void;
-  setDisplayedDateRange: Dispatch<SetStateAction<[Date, Date]>>;
-  dateRange: [Date, Date];
 };
 
 type DayCell = {
@@ -53,29 +52,8 @@ function buildMonthGrid(view: Date, weekStart: number = 0): DayCell[] {
   return days;
 }
 
-export default function MonthView({
-  events,
-  view,
-  setView,
-  openModal,
-  setDisplayedDateRange,
-  dateRange,
-}: Props) {
+export default function MonthView({ events, view, setView, openModal }: Props) {
   const grid = useMemo(() => buildMonthGrid(view), [view]);
-  useEffect(() => {
-    const sorted = buildMonthGrid(view);
-    sorted.sort((a, b) => a.date.getTime() - b.date.getTime());
-    const start = sorted[0].date;
-    const end = sorted[sorted.length - 1].date;
-    if (
-      !(
-        start.getTime() === dateRange[0].getTime() &&
-        end.getTime() === dateRange[1].getTime()
-      )
-    ) {
-      setDisplayedDateRange([start, end]);
-    }
-  }, [view, dateRange, setDisplayedDateRange]);
 
   const eventsByDay = useMemo(() => {
     return getEventsByDay(events);
@@ -101,7 +79,7 @@ export default function MonthView({
         </div>
 
         {/* Grid */}
-        <div className="grid grid-cols-7 gap-2">
+        <div className="grid grid-cols-7 grid-rows-5 gap-2 h-full pb-6">
           {grid.map((cell) => {
             const dayEvents = eventsByDay.get(dateString(cell.date)) ?? [];
             const isSelected = dateString(cell.date) === dateString(view);
@@ -111,7 +89,7 @@ export default function MonthView({
                 key={cell.key}
                 onClick={() => setView(cell.date)}
                 className={[
-                  "h-22.5 rounded border px-2 pt-1 text-left transition flex flex-col",
+                  "rounded border px-2 pt-1 text-left transition flex flex-col",
                   cell.inMonth
                     ? "bg-ctp-surface1"
                     : "bg-ctp-surface0 text-ctp-text",
@@ -151,7 +129,7 @@ export default function MonthView({
                     dayEvents.map((e, idx) => (
                       <div
                         key={`${cell.key}-${idx}-${e.title}`}
-                        className={`truncate rounded bg-ctp-overlay2 px-1.5 py-1 text-xs text-ctp-base outline-2 outline-ctp-${e.color}`}
+                        className={`truncate rounded px-1.5 py-1 text-xs text-ctp-base bg-ctp-${e.color}`}
                         title={e.title}
                       >
                         {e.title}

@@ -186,7 +186,7 @@ export function EventModal({
           <div className="space-y-1">
             <label className="text-xs text-ctp-subtext1">Calendar</label>
             <select
-              className="w-full rounded border border-ctp-overlay2 bg-ctp-surface1 px-2 py-1 text-ctp-text"
+              className="w-full rounded border border-ctp-overlay2 bg-ctp-surface1 px-2 py-1 text-ctp-text h-8.5"
               value={draft.calendarId}
               onChange={(e) =>
                 setDraft((d) => (d ? { ...d, calendarId: e.target.value } : d))

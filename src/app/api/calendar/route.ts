@@ -148,5 +148,5 @@ export async function DELETE(request: Request) {
 
   await db.delete(calendars).where(eq(calendars.id, id));
 
-  return NextResponse.json({ message: "Calendar deleted" });
+  return new Response(null, { status: 204 });
 }

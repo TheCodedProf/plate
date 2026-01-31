@@ -1,7 +1,13 @@
+"use client";
+import { useEffect, useRef } from "react";
 import { Button } from "../lib/Button";
 import { CalendarEvent } from "../lib/CalendarEvent";
 import { formatTime } from "../lib/time";
 import { calendarEvents } from "@/lib/db";
+
+function DateSkeleton() {
+  return <p className="w-24 h-4 bg-ctp-surface1 rounded animate-pulse"></p>;
+}
 
 export function DaySummary({
   selectedEvents,
@@ -12,17 +18,31 @@ export function DaySummary({
   view: Date;
   openModal: (event?: typeof calendarEvents.$inferInsert) => void;
 }) {
+  const mounted = useRef(false);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  const getFormattedDate = () => {
+    if (!mounted) return null;
+
+    return view.toLocaleDateString("default", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+    });
+  };
+
   return (
     <div className="w-full h-full overflow-y-scroll overscroll-none no-scrollbar">
-      <div className="mb-2 text-sm font-semibold sticky top-0 bg-ctp-base flex justify-between items-center pb-2">
-        <p className="text-ctp-text">
-          Events on{" "}
-          {view.toLocaleDateString("default", {
-            month: "short",
-            day: "2-digit",
-            year: "numeric",
-          })}
-        </p>
+      <div className="mb-2 text-sm font-semibold sticky top-0 bg-ctp-base flex justify-between items-center pb-2 h-10">
+        <div className="text-ctp-text h-[2lh]">
+          Events on {mounted ? <p>{getFormattedDate()}</p> : <DateSkeleton />}
+        </div>
         <Button onClick={() => openModal()}>Add Event</Button>
       </div>
 
@@ -42,10 +62,15 @@ export function DaySummary({
               onClick={() => openModal(e)}
             >
               <div className="grid grid-cols-3 items-start justify-between gap-2 w-full text-left">
-                <p className="font-semibold col-span-2 group-hover:underline">
-                  {e.title}
-                </p>
-                <div className="text-xs text-ctp-subtext1">
+                <div className="col-span-2 flex items-center gap-1">
+                  <div
+                    className={`rounded-full w-2 h-2 bg-ctp-${e.color}`}
+                  ></div>
+                  <p className="font-semibold group-hover:underline">
+                    {e.title}
+                  </p>
+                </div>
+                <div className="text-xs text-ctp-subtext1 text-right">
                   {formatTime(e, view)}
                 </div>
               </div>
