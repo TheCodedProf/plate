@@ -1,49 +1,62 @@
 "use client";
+// Needed for rendering DateTime in the correct TZ
 
 import { useEffect, useMemo, useState } from "react";
-import TodoItemModal, { Todo, RecurrenceType } from "./TodoItemModal";
-import TodoSettingsModal, {
-  loadTodoWidgetSettings,
-  saveTodoWidgetSettings,
-  TodoWidgetSettings,
-} from "./TodoSettingsModal";
 
-function formatDue(dueDate: string | null) {
+import { settings as settingsDb } from "@/lib/db";
+
+import TodoItemModal, { Todo } from "./TodoItemModal";
+import TodoSettingsModal from "./TodoSettingsModal";
+
+function cx(...classes: Array<false | null | string | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
+
+function formatDue(dueDate: null | string) {
   if (!dueDate) return null;
   const d = new Date(dueDate);
   if (Number.isNaN(d.getTime())) return null;
   return d.toLocaleDateString();
 }
 
-export default function TodoWidget() {
+const NO_SMOKING_OVERLAY = cx("relative", "cursor-not-allowed opacity-40");
+
+export default function TodoWidget({
+  setSettings,
+  settings,
+}: {
+  setSettings: React.Dispatch<
+    React.SetStateAction<null | typeof settingsDb.$inferSelect>
+  >;
+  settings: typeof settingsDb.$inferSelect;
+}) {
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [loading, setLoading] = useState(true);
 
   const [newTitle, setNewTitle] = useState("");
   const [newDue, setNewDue] = useState(""); // yyyy-mm-dd
 
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settings, setSettings] = useState<TodoWidgetSettings>({
-    completionBehavior: "crossout",
-  });
 
-  const [selected, setSelected] = useState<Todo | null>(null);
+  const [selected, setSelected] = useState<null | Todo>(null);
   const [itemOpen, setItemOpen] = useState(false);
 
   async function refresh() {
-    setLoading(true);
     try {
       const res = await fetch("/api/todos");
       const data = await res.json();
       setTodos(Array.isArray(data) ? data : []);
-    } finally {
-      setLoading(false);
+    } catch (e) {
+      console.log(e);
     }
   }
 
   useEffect(() => {
-    setSettings(loadTodoWidgetSettings());
-    void refresh();
+    fetch("/api/todos")
+      .then((res) => res.json())
+      .then((data) => {
+        setTodos(Array.isArray(data) ? data : []);
+      })
+      .catch(console.warn);
   }, []);
 
   const sorted = useMemo(() => {
@@ -58,13 +71,19 @@ export default function TodoWidget() {
       const bc = Boolean(b.completed);
       if (ac !== bc) return ac ? 1 : -1;
 
-      const ad = a.dueDate ? new Date(a.dueDate).getTime() : Number.POSITIVE_INFINITY;
-      const bd = b.dueDate ? new Date(b.dueDate).getTime() : Number.POSITIVE_INFINITY;
+      const ad = a.dueDate
+        ? new Date(a.dueDate).getTime()
+        : Number.POSITIVE_INFINITY;
+      const bd = b.dueDate
+        ? new Date(b.dueDate).getTime()
+        : Number.POSITIVE_INFINITY;
       if (ad !== bd) return ad - bd;
 
       return a.title.localeCompare(b.title);
     });
-  }, [todos, settings.completionBehavior]);
+  }, [todos, settings]);
+
+  const canAdd = newTitle.trim().length > 0;
 
   async function createTodo() {
     const title = newTitle.trim();
@@ -74,9 +93,9 @@ export default function TodoWidget() {
       newDue.trim() !== "" ? new Date(`${newDue}T00:00:00`) : null;
 
     const res = await fetch("/api/todos", {
-      method: "POST",
+      body: JSON.stringify({ dueDate, title }),
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, dueDate }),
+      method: "POST",
     });
 
     if (!res.ok) return;
@@ -88,9 +107,9 @@ export default function TodoWidget() {
 
   async function toggle(todo: Todo) {
     const res = await fetch(`/api/todo?id=${encodeURIComponent(todo.id)}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ completed: !todo.completed }),
+      headers: { "Content-Type": "application/json" },
+      method: "PATCH",
     });
 
     if (!res.ok) return;
@@ -118,9 +137,9 @@ export default function TodoWidget() {
     }
 
     const res = await fetch(`/api/todo?id=${encodeURIComponent(selected.id)}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
+      headers: { "Content-Type": "application/json" },
+      method: "PATCH",
     });
 
     if (!res.ok) return;
@@ -139,25 +158,32 @@ export default function TodoWidget() {
   return (
     <>
       <section
-        className={[
-          "col-span-4 row-span-2",
-          "rounded border border-ctp-overlay2 bg-ctp-surface1 p-4",
+        className={cx(
+          "max-h-full min-h-full max-w-full min-w-full",
+          "border-ctp-overlay2 bg-ctp-surface1 rounded border p-4",
           "flex flex-col overflow-hidden",
-        ].join(" ")}
+        )}
       >
         <div className="flex items-center justify-between pb-3">
-          <h2 className="text-lg font-semibold text-ctp-text">To-Do</h2>
+          <h2 className="text-ctp-text text-lg font-semibold">To-Do</h2>
           <div className="flex items-center gap-2">
             <button
+              className={cx(
+                "bg-ctp-crust text-ctp-text rounded px-3 py-1 text-sm font-semibold",
+                "hover:bg-ctp-surface2 cursor-pointer transition",
+              )}
               onClick={() => setSettingsOpen(true)}
-              className="rounded bg-ctp-crust px-3 py-1 text-sm font-semibold text-ctp-text hover:bg-ctp-surface2 transition"
               title="Settings"
             >
               Settings
             </button>
+
             <button
+              className={cx(
+                "bg-ctp-crust text-ctp-text rounded px-3 py-1 text-sm font-semibold",
+                "hover:bg-ctp-surface2 cursor-pointer transition",
+              )}
               onClick={() => void refresh()}
-              className="rounded bg-ctp-crust px-3 py-1 text-sm font-semibold text-ctp-text hover:bg-ctp-surface2 transition"
             >
               Refresh
             </button>
@@ -167,91 +193,136 @@ export default function TodoWidget() {
         {/* Add row */}
         <div className="flex gap-2 pb-3">
           <input
-            value={newTitle}
+            className={cx(
+              "border-ctp-overlay2 bg-ctp-base flex-1 rounded border px-3 py-2 text-sm",
+              "text-ctp-text placeholder:text-ctp-subtext0 outline-none",
+              "focus:ring-ctp-overlay2 focus:ring-2",
+            )}
             onChange={(e) => setNewTitle(e.target.value)}
-            placeholder="Add a task…"
-            className="flex-1 rounded border border-ctp-overlay2 bg-ctp-base px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 outline-none focus:ring-2 focus:ring-ctp-overlay2"
             onKeyDown={(e) => {
-              if (e.key === "Enter") void createTodo();
+              if (e.key === "Enter" && canAdd) void createTodo();
             }}
+            placeholder="Add a task…"
+            value={newTitle}
           />
+
           <input
+            className={cx(
+              "border-ctp-overlay2 bg-ctp-base rounded border px-3 py-2 text-sm",
+              "text-ctp-text focus:ring-ctp-overlay2 outline-none focus:ring-2",
+              "cursor-pointer",
+            )}
+            onChange={(e) => setNewDue(e.target.value)}
             type="date"
             value={newDue}
-            onChange={(e) => setNewDue(e.target.value)}
-            className="rounded border border-ctp-overlay2 bg-ctp-base px-3 py-2 text-sm text-ctp-text outline-none focus:ring-2 focus:ring-ctp-overlay2"
           />
+
           <button
-            onClick={() => void createTodo()}
-            className="rounded bg-ctp-green px-3 py-2 text-sm font-semibold text-ctp-base hover:opacity-90 transition"
+            aria-disabled={!canAdd}
+            className={cx(
+              "bg-ctp-green text-ctp-base rounded px-3 py-2 text-sm font-semibold transition",
+              canAdd ? "cursor-pointer hover:opacity-90" : NO_SMOKING_OVERLAY,
+            )}
+            disabled={!canAdd}
+            onClick={() => {
+              if (canAdd) void createTodo();
+            }}
+            title={canAdd ? "Add task" : "Enter a task title to enable Add"}
           >
             Add
           </button>
         </div>
 
         {/* List */}
-        <div className="flex-1 overflow-auto rounded border border-ctp-overlay2 bg-ctp-surface0">
-          {loading ? (
-            <div className="p-4 text-sm text-ctp-subtext0">Loading…</div>
-          ) : sorted.length === 0 ? (
-            <div className="p-4 text-sm text-ctp-subtext0">
+        <div className="border-ctp-overlay2 bg-ctp-surface0 max-h-full flex-1 overflow-x-hidden overflow-y-scroll rounded border">
+          {sorted.length === 0 ? (
+            <div className="text-ctp-subtext0 p-4 text-sm">
               No tasks yet. Add one above.
             </div>
           ) : (
-            <ul className="divide-y divide-ctp-overlay2">
+            <ul className="divide-ctp-overlay2 divide-y">
               {sorted.map((t) => {
                 const due = formatDue(t.dueDate);
 
+                // If you later want to disable these conditionally, flip these booleans.
+                const canToggle = true;
+                const canDelete = true;
+
                 return (
                   <li
+                    className={cx(
+                      "flex items-center gap-3 p-3 transition",
+                      "hover:bg-ctp-surface2/40",
+                      "cursor-pointer",
+                    )}
                     key={t.id}
-                    className="flex items-center gap-3 p-3 hover:bg-ctp-surface2/40 transition cursor-pointer"
                     onClick={() => openItem(t)}
+                    title="Open task"
                   >
-                    {/* Stop row click when using these buttons */}
+                    {/* Toggle complete */}
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void toggle(t);
-                      }}
-                      className={[
-                        "h-5 w-5 rounded border flex items-center justify-center",
+                      aria-disabled={!canToggle}
+                      aria-label="Toggle complete"
+                      className={cx(
+                        "flex h-5 w-5 items-center justify-center rounded border",
+                        canToggle ? "cursor-pointer" : NO_SMOKING_OVERLAY,
                         t.completed
                           ? "bg-ctp-green border-ctp-green text-ctp-base"
-                          : "bg-transparent border-ctp-overlay2 text-ctp-text",
-                      ].join(" ")}
-                      aria-label="Toggle complete"
-                      title="Toggle complete"
+                          : "border-ctp-overlay2 text-ctp-text bg-transparent",
+                      )}
+                      disabled={!canToggle}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!canToggle) return;
+                        void toggle(t);
+                      }}
+                      title={canToggle ? "Toggle complete" : "Not available"}
                     >
                       {t.completed ? "✓" : ""}
                     </button>
 
-                    <div className="flex-1 min-w-0">
+                    {/* Text block: default cursor so only row/controls feel clickable */}
+                    <div className="min-w-0 flex-1 cursor-default">
                       <div
-                        className={[
+                        className={cx(
                           "truncate text-sm font-semibold",
-                          t.completed && settings.completionBehavior === "crossout"
+                          t.completed &&
+                            settings.completionBehavior === "crossout"
                             ? "text-ctp-subtext0 line-through"
                             : "text-ctp-text",
-                        ].join(" ")}
+                        )}
                         title={t.title}
                       >
                         {t.title}
                       </div>
+
                       {due ? (
-                        <div className="text-xs text-ctp-subtext0">Due {due}</div>
+                        <div className="text-ctp-subtext0 text-xs">
+                          Due {due}
+                        </div>
                       ) : (
-                        <div className="text-xs text-ctp-subtext0">No due date</div>
+                        <div className="text-ctp-subtext0 text-xs">
+                          No due date
+                        </div>
                       )}
                     </div>
 
+                    {/* Delete */}
                     <button
+                      aria-disabled={!canDelete}
+                      className={cx(
+                        "bg-ctp-crust text-ctp-text rounded px-2 py-1 text-xs font-semibold transition",
+                        canDelete
+                          ? "hover:bg-ctp-surface2 cursor-pointer"
+                          : NO_SMOKING_OVERLAY,
+                      )}
+                      disabled={!canDelete}
                       onClick={(e) => {
                         e.stopPropagation();
+                        if (!canDelete) return;
                         void remove(t.id);
                       }}
-                      className="rounded bg-ctp-crust px-2 py-1 text-xs font-semibold text-ctp-text hover:bg-ctp-surface2 transition"
-                      title="Delete"
+                      title={canDelete ? "Delete" : "Not available"}
                     >
                       ✕
                     </button>
@@ -264,22 +335,18 @@ export default function TodoWidget() {
       </section>
 
       <TodoSettingsModal
-        open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
+        open={settingsOpen}
+        setSettings={setSettings}
         settings={settings}
-        onSave={(s) => {
-          setSettings(s);
-          saveTodoWidgetSettings(s);
-          setSettingsOpen(false);
-        }}
       />
 
       <TodoItemModal
+        onClose={() => setItemOpen(false)}
+        onDelete={deleteFromModal}
+        onSave={saveFromModal}
         open={itemOpen}
         todo={selected}
-        onClose={() => setItemOpen(false)}
-        onSave={saveFromModal}
-        onDelete={deleteFromModal}
       />
     </>
   );

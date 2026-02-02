@@ -1,8 +1,44 @@
-import { auth } from "@/lib/auth";
-import db, { calendarEvents } from "@/lib/database";
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+
+import { auth } from "@/lib/auth";
+import db, { calendarEvents } from "@/lib/database";
+
+export async function DELETE(request: Request) {
+  const { searchParams } = new URL(request.url);
+
+  const id = searchParams.get("id");
+
+  if (!id) {
+    return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  }
+
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  const calendarId = await db.query.calendarEvents.findFirst({
+    columns: { calendarId: true },
+    where: (event, { eq }) => eq(event.id, id),
+  });
+
+  if (!calendarId) {
+    return NextResponse.json({ error: "Event not found" }, { status: 404 });
+  }
+
+  const calendar = await db.query.calendars.findFirst({
+    where: (calendar, { eq }) => eq(calendar.id, calendarId.calendarId),
+  });
+
+  if (!session || !calendar || session.user.id != calendar.userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  await db.delete(calendarEvents).where(eq(calendarEvents.id, id));
+
+  return new Response(null, { status: 204 });
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -38,7 +74,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { title, notes, start, end, calendarId, location, allDay } =
+  const { allDay, calendarId, end, location, notes, start, title } =
     await request.json();
 
   if (!title || !start || !end || !calendarId) {
@@ -68,13 +104,13 @@ export async function POST(request: Request) {
   const event = await db
     .insert(calendarEvents)
     .values({
+      allDay,
       calendarId,
-      title,
-      notes,
-      start: new Date(start),
       end: new Date(end),
       location,
-      allDay,
+      notes,
+      start: new Date(start),
+      title,
     })
     .returning();
 
@@ -82,7 +118,7 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const { id, title, notes, start, end, calendarId, location, allDay } =
+  const { allDay, calendarId, end, id, location, notes, start, title } =
     await request.json();
 
   if (!id || !title || !start || !end || !calendarId) {
@@ -107,51 +143,16 @@ export async function PUT(request: Request) {
   const event = await db
     .update(calendarEvents)
     .set({
-      title,
-      notes,
-      start: new Date(start),
-      end: new Date(end),
-      location,
       allDay,
       calendarId,
+      end: new Date(end),
+      location,
+      notes,
+      start: new Date(start),
+      title,
     })
     .where(eq(calendarEvents.id, id))
     .returning();
 
   return NextResponse.json(event[0], { status: 201 });
-}
-
-export async function DELETE(request: Request) {
-  const { searchParams } = new URL(request.url);
-
-  const id = searchParams.get("id");
-
-  if (!id) {
-    return NextResponse.json({ error: "Missing id" }, { status: 400 });
-  }
-
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  const calendarId = await db.query.calendarEvents.findFirst({
-    where: (event, { eq }) => eq(event.id, id),
-    columns: { calendarId: true },
-  });
-
-  if (!calendarId) {
-    return NextResponse.json({ error: "Event not found" }, { status: 404 });
-  }
-
-  const calendar = await db.query.calendars.findFirst({
-    where: (calendar, { eq }) => eq(calendar.id, calendarId.calendarId),
-  });
-
-  if (!session || !calendar || session.user.id != calendar.userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  await db.delete(calendarEvents).where(eq(calendarEvents.id, id));
-
-  return new Response(null, { status: 204 });
 }

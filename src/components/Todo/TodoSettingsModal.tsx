@@ -1,6 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { settings as settingsDb } from "@db";
+import { Dispatch, SetStateAction } from "react";
+
+import { updateSettings } from "@/lib/settingsDb";
 
 export type CompletionBehavior = "crossout" | "hide";
 
@@ -33,96 +36,109 @@ export function saveTodoWidgetSettings(settings: TodoWidgetSettings) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 }
 
+function cx(...classes: Array<false | null | string | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
+
+const optionBase =
+  "rounded px-3 py-2 text-sm font-semibold transition border cursor-pointer";
+
 export default function TodoSettingsModal({
-  open,
   onClose,
+  open,
+  setSettings,
   settings,
-  onSave,
 }: {
-  open: boolean;
   onClose: () => void;
-  settings: TodoWidgetSettings;
-  onSave: (settings: TodoWidgetSettings) => void;
+  open: boolean;
+  setSettings: Dispatch<SetStateAction<null | typeof settingsDb.$inferSelect>>;
+  settings: typeof settingsDb.$inferSelect;
 }) {
-  const [local, setLocal] = useState<TodoWidgetSettings>(settings);
-
-  useEffect(() => setLocal(settings), [settings]);
-
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center">
+    <div className="fixed inset-0 z-60 flex items-center justify-center">
       <div
+        aria-hidden="true"
         className="absolute inset-0 bg-black/60"
         onClick={onClose}
-        aria-hidden="true"
       />
-      <div className="relative w-[min(720px,92vw)] rounded border border-ctp-overlay2 bg-ctp-surface1 p-4 shadow-lg">
+
+      <div className="border-ctp-overlay2 bg-ctp-surface1 relative w-[min(720px,92vw)] rounded border p-4 shadow-lg">
         <div className="flex items-center justify-between pb-3">
-          <h3 className="text-lg font-semibold text-ctp-text">To-Do Settings</h3>
+          <h3 className="text-ctp-text text-lg font-semibold">
+            To-Do Settings
+          </h3>
+
           <button
+            className={cx(
+              "bg-ctp-crust text-ctp-text rounded px-2 py-1 text-sm font-semibold transition",
+              "hover:bg-ctp-surface2 cursor-pointer",
+            )}
             onClick={onClose}
-            className="rounded bg-ctp-crust px-2 py-1 text-sm font-semibold text-ctp-text hover:bg-ctp-surface2 transition"
+            title="Close"
           >
             ✕
           </button>
         </div>
 
         <div className="space-y-4">
-          <div className="rounded border border-ctp-overlay2 bg-ctp-surface0 p-3">
-            <div className="text-sm font-semibold text-ctp-text">
+          <div className="bg-ctp-surface0 rounded-lg p-3">
+            <div className="text-ctp-subtext0 font-semibold underline underline-offset-4">
               Completed item behavior
             </div>
-            <div className="pt-2 flex gap-2">
+
+            <div className="flex gap-2 pt-2">
+              {/* Cross out */}
               <button
-                onClick={() =>
-                  setLocal((s) => ({ ...s, completionBehavior: "crossout" }))
-                }
-                className={[
-                  "rounded px-3 py-2 text-sm font-semibold transition border",
-                  local.completionBehavior === "crossout"
-                    ? "bg-ctp-green text-ctp-base border-ctp-green"
-                    : "bg-ctp-base text-ctp-text border-ctp-overlay2 hover:bg-ctp-surface2",
-                ].join(" ")}
+                className={optionClass(
+                  settings.completionBehavior === "crossout",
+                )}
+                onClick={() => {
+                  updateSettings({
+                    ...settings,
+                    completionBehavior: "crossout",
+                  }).then((cf_set) => {
+                    setSettings(cf_set);
+                  });
+                }}
+                type="button"
               >
                 Cross out
               </button>
+
               <button
-                onClick={() =>
-                  setLocal((s) => ({ ...s, completionBehavior: "hide" }))
-                }
-                className={[
-                  "rounded px-3 py-2 text-sm font-semibold transition border",
-                  local.completionBehavior === "hide"
-                    ? "bg-ctp-green text-ctp-base border-ctp-green"
-                    : "bg-ctp-base text-ctp-text border-ctp-overlay2 hover:bg-ctp-surface2",
-                ].join(" ")}
+                className={optionClass(settings.completionBehavior === "hide")}
+                onClick={() => {
+                  updateSettings({
+                    ...settings,
+                    completionBehavior: "hide",
+                  }).then((cf_set) => {
+                    setSettings(cf_set);
+                  });
+                }}
+                type="button"
               >
                 Disappear
               </button>
             </div>
-            <div className="pt-2 text-xs text-ctp-subtext0">
+
+            <div className="text-ctp-subtext0 pt-2 text-xs">
               “Disappear” hides completed items in the widget view (they still
               exist and can be edited if you keep another view later).
             </div>
           </div>
         </div>
-
-        <div className="flex items-center justify-end gap-2 pt-4">
-          <button
-            onClick={onClose}
-            className="rounded bg-ctp-crust px-3 py-2 text-sm font-semibold text-ctp-text hover:bg-ctp-surface2 transition"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => onSave(local)}
-            className="rounded bg-ctp-green px-3 py-2 text-sm font-semibold text-ctp-base hover:opacity-90 transition"
-          >
-            Save
-          </button>
-        </div>
       </div>
     </div>
+  );
+}
+
+function optionClass(selected: boolean) {
+  return cx(
+    optionBase,
+    selected
+      ? "bg-ctp-green text-ctp-base border-ctp-green"
+      : "bg-ctp-surface1 text-ctp-text border-ctp-overlay2 hover:bg-ctp-surface2",
   );
 }

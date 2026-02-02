@@ -1,34 +1,57 @@
 @import "tailwindcss";
 @import "@catppuccin/tailwindcss/macchiato.css";
 
-@source inline("{border,bg,outline}-ctp-{rosewater,flamingo,pink,mauve,red,maroon,peach,yellow,green,teal,sky,sapphire,blue,lavender}");
+@source inline("{border,bg,outline,text}-ctp-{rosewater,flamingo,pink,mauve,red,maroon,peach,yellow,green,teal,sky,sapphire,blue,lavender}");
+@source inline("hover:bg-ctp-{rosewater,flamingo,pink,mauve,red,maroon,peach,yellow,green,teal,sky,sapphire,blue,lavender}-200");
 @source inline("{row,col}-span-{1,2,3,4,5,6,7,8,9}");
 
 root {
-    --background: var(--color-ctp-base);
-    --foreground: var(--color-ctp-text);
+  --background: var(--color-ctp-base);
+  --foreground: var(--color-ctp-text);
+}
+
+* {
+  scrollbar-color: var(--color-ctp-text) var(--color-ctp-base);
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-ctp-base);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-ctp-text);
+  -webkit-border-radius: 5px;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
 }
 
 @theme inline {
-    --color-background: var(--background);
-    --color-foreground: var(--foreground);
-    --font-sans: var(--font-geist-sans);
-    --font-mono: var(--font-geist-mono);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
-    :root {
-        --background: #0a0a0a;
-        --foreground: #ededed;
-    }
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
 }
 
 body {
-    background: var(--background);
-    color: var(--foreground);
-    font-family: Arial, Helvetica, sans-serif;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 @utility no-scrollbar {
-    @apply [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
+  @apply [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
 }

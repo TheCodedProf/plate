@@ -1,37 +1,38 @@
-import { pgTable, uuid, text, boolean, timestamp } from "drizzle-orm/pg-core";
-import { users } from "./users";
 import { relations } from "drizzle-orm";
+import { boolean, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+
+import { users } from "./users";
 
 export const calendars = pgTable("calendars", {
+  color: text("color").default("lavender").notNull(),
+  default: boolean("default").default(false).notNull(),
+  description: text("description"),
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
-  description: text("description"),
-  color: text("color").default("lavendar").notNull(),
   userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
-  default: boolean("default").default(false).notNull(),
 });
 
 export const calendarEvents = pgTable("calendar_events", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  title: text("title").notNull(),
-  start: timestamp("start", { withTimezone: true }).notNull(),
-  end: timestamp("end", { withTimezone: true }).notNull(),
   allDay: boolean("all_day").notNull().default(false),
-  notes: text("notes"),
-  location: text("location"),
   calendarId: uuid("calendar_id")
     .notNull()
     .references(() => calendars.id, { onDelete: "cascade" }),
+  end: timestamp("end", { withTimezone: true }).notNull(),
+  id: uuid("id").primaryKey().defaultRandom(),
+  location: text("location"),
+  notes: text("notes"),
+  start: timestamp("start", { withTimezone: true }).notNull(),
+  title: text("title").notNull(),
 });
 
-export const calendarRelations = relations(calendars, ({ one, many }) => ({
+export const calendarRelations = relations(calendars, ({ many, one }) => ({
+  events: many(calendarEvents),
   user: one(users, {
     fields: [calendars.userId],
     references: [users.id],
   }),
-  events: many(calendarEvents),
 }));
 
 export const calendarEventRelations = relations(calendarEvents, ({ one }) => ({

@@ -1,8 +1,40 @@
-import { auth } from "@/lib/auth";
 import db, { todos } from "@db";
 import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+
+import { auth } from "@/lib/auth";
+
+export async function DELETE(request: Request) {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
+
+  if (!id) {
+    return NextResponse.json(
+      { error: "Missing id parameter" },
+      { status: 400 },
+    );
+  }
+
+  const [deleted] = await db
+    .delete(todos)
+    .where(and(eq(todos.id, id), eq(todos.userId, session.user.id)))
+    .returning();
+
+  if (!deleted) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  return NextResponse.json({ ok: true });
+}
 
 export async function PATCH(request: Request) {
   const session = await auth.api.getSession({
@@ -68,35 +100,4 @@ export async function PATCH(request: Request) {
   }
 
   return NextResponse.json(updated);
-}
-
-export async function DELETE(request: Request) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { searchParams } = new URL(request.url);
-  const id = searchParams.get("id");
-
-  if (!id) {
-    return NextResponse.json(
-      { error: "Missing id parameter" },
-      { status: 400 },
-    );
-  }
-
-  const [deleted] = await db
-    .delete(todos)
-    .where(and(eq(todos.id, id), eq(todos.userId, session.user.id)))
-    .returning();
-
-  if (!deleted) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  return NextResponse.json({ ok: true });
 }

@@ -1,150 +1,75 @@
 "use client";
-import { ReactNode, useMemo } from "react";
+import { settings as settingsModel } from "@db";
+// Needed for rendering DateTime in the correct TZ
+//
+import { createRef, ReactNode, Ref, useEffect, useMemo } from "react";
+
+import { calendarEvents } from "@/lib/db";
+
 import { CalendarEvent } from "../lib/CalendarEvent";
 import { checkOverlap } from "../lib/time";
 import {
-  day,
-  hour,
-  truncDate,
   addDates,
-  scaleDate,
+  day,
   formatTime,
   formatTimeLocal,
+  hour,
+  truncDate,
 } from "../lib/time";
-import { settings as settingsModel } from "@db";
-import { calendarEvents } from "@/lib/db";
-
-function fMapPerc(val: number, min: number, max: number): number {
-  return Math.max(0.0, Math.min(1.0, (val - min) / (max - min)));
-}
-
-function DayEvent(
-  event: CalendarEvent & { color: string },
-  top: number,
-  left: number,
-  bottom: number,
-  key: number,
-  view: Date,
-  openModal: (event: typeof calendarEvents.$inferSelect) => void,
-): ReactNode {
-  return (
-    <button
-      onClick={() => openModal(event)}
-      className={`rounded text-ctp-base hover:bg-ctp-surface2 px-2 cursor-pointer text-left align-text-top m-2 bg-ctp-${event.color}`}
-      key={key}
-      style={{
-        gridColumnStart: left,
-        gridColumnEnd: "span 1",
-        gridRowStart: top,
-        gridRowEnd: bottom,
-        minHeight: "min-content",
-      }}
-    >
-      <b>{event.title}</b>
-      <br></br>
-      {formatTime(event, view)}
-    </button>
-  );
-}
-
-function TimeMarker(
-  key: string,
-  text: string,
-  start: number,
-  end: number,
-  columns: number,
-  time_start: Date,
-  time_end: Date,
-  openModal: (
-    initialEvent?: Partial<typeof calendarEvents.$inferInsert>,
-  ) => void,
-): [ReactNode, ReactNode] {
-  return [
-    /* time text */
-    <div
-      key={key}
-      style={{
-        gridRowStart: start,
-        gridRowEnd: end,
-        gridColumn: 1,
-        zIndex: 1,
-      }}
-    >
-      {text}
-    </div>,
-    /* lines */
-    <div
-      key={`${key}-line`}
-      className="border-t-2 border-t-ctp-surface1 hover:bg-ctp-surface1"
-      style={{
-        gridRowStart: start,
-        gridRowEnd: end,
-        gridColumnStart: 1,
-        gridColumnEnd: columns + 2,
-        width: "100%",
-      }}
-      onClick={() => {
-        openModal({ start: time_start, end: time_end });
-      }}
-    ></div>,
-  ];
-}
 
 export default function DayView({
   events,
-  view,
-  settings,
   openModal,
+  settings,
+  view,
 }: {
   events: Array<CalendarEvent & { color: string }>;
-  view: Date;
-  settings: typeof settingsModel.$inferSelect;
   openModal: (
     initialEvent?: Partial<typeof calendarEvents.$inferInsert>,
   ) => void;
+  settings: typeof settingsModel.$inferSelect;
+  view: Date;
 }) {
   /* get visible timespan from selected date */
   const timespan: [Date, Date] = useMemo(() => {
-    const ts = [
-      addDates(truncDate(view), scaleDate(hour, settings.dayStartHour)),
-    ];
+    const ts = [addDates(truncDate(view), new Date(0))];
     ts.push(addDates(ts[0], day));
     return ts as [Date, Date];
-  }, [view, settings.dayStartHour]);
+  }, [view]);
 
-  interface relativeEvent {
+  interface RelativeEvent {
+    column: number;
+    end: number;
+    end_slot: number;
     event: CalendarEvent & { color: string };
     start: number;
-    end: number;
     start_slot: number;
-    end_slot: number;
-    column: number;
   }
   /* filter out events that are not visible, and convert times to be relative *
    * to the visible timespan                                                  */
-  const filtered_events: Array<relativeEvent> = events
+  const filtered_events: Array<RelativeEvent> = events
     .filter((event) => checkOverlap(timespan, [event.start, event.end]))
     .map((event) => {
-      const relEvent: relativeEvent = {
+      const relEvent: RelativeEvent = {
+        column: 0,
+        end: fMapPerc(
+          Number(event.end),
+          Number(timespan[0]),
+          Number(timespan[1]),
+        ),
+        end_slot: 0,
         event,
         start: fMapPerc(
           Number(event.start),
           Number(timespan[0]),
           Number(timespan[1]),
         ),
-        end: fMapPerc(
-          Number(event.end),
-          Number(timespan[0]),
-          Number(timespan[1]),
-        ),
         start_slot: 0,
-        end_slot: 0,
-        column: 0,
       };
       return relEvent;
     });
   /* sort by start times then end times */
-  filtered_events.sort((a: relativeEvent, b: relativeEvent) => {
+  filtered_events.sort((a: RelativeEvent, b: RelativeEvent) => {
     if (a.start == b.start) return a.end - b.end;
     return a.start - b.start;
   });
@@ -163,11 +88,11 @@ export default function DayView({
 
   const line_markers: Array<number> = [];
   /* arrange the events on the grid */
-  const active_events: Array<relativeEvent | null> = [];
+  const active_events: Array<null | RelativeEvent> = [];
   let i: number = 1;
   for (const time of time_splits) {
     /* remove all of the ending events */
-    const end_events: Array<relativeEvent> = filtered_events.filter(
+    const end_events: Array<RelativeEvent> = filtered_events.filter(
       (event) => event.end == time,
     );
     for (const event of end_events) {
@@ -177,7 +102,7 @@ export default function DayView({
     }
 
     /* push all of the starting events */
-    const start_events: Array<relativeEvent> = filtered_events.filter(
+    const start_events: Array<RelativeEvent> = filtered_events.filter(
       (event) => event.start == time,
     );
     for (const event of start_events) {
@@ -191,7 +116,7 @@ export default function DayView({
     }
 
     /* add time interval marker */
-    if ((time * lines_per_day) % 1.0 == 0.0) line_markers.push(i);
+    if (Number.isInteger(time * lines_per_day)) line_markers.push(i);
 
     i++;
   }
@@ -214,10 +139,13 @@ export default function DayView({
     latest_timestamp += Number(hour);
   }
 
+  const refs = timestamps.map(() => createRef<HTMLDivElement>());
+
   const time_marks: Array<ReactNode> = timestamps.map((time, i) =>
     TimeMarker(
       `marker-${i}`,
-      formatTimeLocal(time),
+      refs[i],
+      formatTimeLocal(time, settings.timeFormat),
       line_markers[i],
       line_markers[i + 1],
       grid_cols,
@@ -231,7 +159,7 @@ export default function DayView({
   const event_grid: ReactNode = (
     <div
       //onLoad={() => scrollTo({ top: 100, behavior: "instant" })}
-      className="w-full z-1 grid p-1 min-h-max items-stretch"
+      className="z-1 grid min-h-max w-full items-stretch p-1"
       style={Object.assign(
         {
           gridAutoColumns: "max-content " + "1fr ".repeat(grid_cols),
@@ -250,13 +178,103 @@ export default function DayView({
           i,
           view,
           openModal,
+          settings.timeFormat,
         );
       })}
     </div>
   );
+
+  useEffect(() => {
+    const ref = refs[settings.dayStartHour];
+    console.log(ref);
+    ref.current?.scrollIntoView({
+      behavior: "instant",
+    });
+  }, [view, refs, settings.dayStartHour]);
+
   return (
-    <div className="overscroll-none h-full w-full overflow-y-scroll">
+    <div className="h-full w-full grow overflow-y-scroll overscroll-none">
       {event_grid}
     </div>
   );
+}
+
+function DayEvent(
+  event: CalendarEvent & { color: string },
+  top: number,
+  left: number,
+  bottom: number,
+  key: number,
+  view: Date,
+  openModal: (event: typeof calendarEvents.$inferSelect) => void,
+  timeFormat: string,
+): ReactNode {
+  return (
+    <button
+      className={`text-ctp-base rounded hover:bg-ctp-${event.color}-200 m-2 cursor-pointer px-2 text-left align-text-top bg-ctp-${event.color}`}
+      key={key}
+      onClick={() => openModal(event)}
+      style={{
+        gridColumnEnd: "span 1",
+        gridColumnStart: left,
+        gridRowEnd: bottom,
+        gridRowStart: top,
+        minHeight: "min-content",
+      }}
+    >
+      <b>{event.title}</b>
+      <br></br>
+      {formatTime(event, view, timeFormat)}
+    </button>
+  );
+}
+
+function fMapPerc(val: number, min: number, max: number): number {
+  return Math.max(0.0, Math.min(1.0, (val - min) / (max - min)));
+}
+
+function TimeMarker(
+  key: string,
+  ref: Ref<HTMLDivElement>,
+  text: string,
+  start: number,
+  end: number,
+  columns: number,
+  time_start: Date,
+  time_end: Date,
+  openModal: (
+    initialEvent?: Partial<typeof calendarEvents.$inferInsert>,
+  ) => void,
+): [ReactNode, ReactNode] {
+  return [
+    /* time text */
+    <div
+      className="text-right"
+      key={key}
+      ref={ref}
+      style={{
+        gridColumn: 1,
+        gridRowEnd: end,
+        gridRowStart: start,
+        zIndex: 1,
+      }}
+    >
+      {text}
+    </div>,
+    /* lines */
+    <div
+      className="border-t-ctp-surface1 hover:bg-ctp-surface1 min-h-12 border-t-2"
+      key={`${key}-line`}
+      onClick={() => {
+        openModal({ end: time_end, start: time_start });
+      }}
+      style={{
+        gridColumnEnd: columns + 2,
+        gridColumnStart: 1,
+        gridRowEnd: end,
+        gridRowStart: start,
+        width: "100%",
+      }}
+    ></div>,
+  ];
 }

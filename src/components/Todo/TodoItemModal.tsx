@@ -1,20 +1,21 @@
 "use client";
+// Needed for rendering DateTime in the correct TZ
 
 import { useEffect, useMemo, useState } from "react";
 
-export type RecurrenceType = "none" | "daily" | "weekly" | "every_n_days";
+export type RecurrenceType = "daily" | "every_n_days" | "none" | "weekly";
 
 export type Todo = {
-  id: string;
-  title: string;
-  description: string | null;
-  dueDate: string | null;
   completed: boolean | null;
+  description: null | string;
+  dueDate: null | string;
+  id: string;
+  recurrenceIntervalDays?: null | number; // for every_n_days
 
   // Optional fields if your API/DB supports them later:
-  recurrenceType?: RecurrenceType | null;
-  recurrenceIntervalDays?: number | null; // for every_n_days
-  recurrenceWeekdays?: string[] | null; // ["mon","tue"...] for weekly
+  recurrenceType?: null | RecurrenceType;
+  recurrenceWeekdays?: null | string[]; // ["mon","tue"...] for weekly
+  title: string;
 };
 
 const WEEKDAYS: { key: string; label: string }[] = [
@@ -27,29 +28,52 @@ const WEEKDAYS: { key: string; label: string }[] = [
   { key: "sat", label: "Sat" },
 ];
 
-function toDateInputValue(dueDate: string | null) {
-  if (!dueDate) return "";
-  const d = new Date(dueDate);
-  if (Number.isNaN(d.getTime())) return "";
-  // yyyy-mm-dd in local time
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
+function cx(...classes: Array<false | null | string | undefined>) {
+  return classes.filter(Boolean).join(" ");
 }
 
+// "No smoking" overlay: circle (after) + slash (before)
+const NO_SMOKING_OVERLAY = cx(
+  "relative",
+  "cursor-not-allowed opacity-40",
+  // Circle
+  "after:absolute after:inset-0 after:rounded-full after:border after:border-current after:content-['']",
+  // Slash
+  "before:absolute before:inset-0 before:rotate-45 before:border-t before:border-current before:content-['']",
+);
+
+const getSelectedClass = (selected: boolean) => {
+  return selected
+    ? "bg-ctp-green text-ctp-base border-ctp-green cursor-pointer"
+    : "bg-ctp-base text-ctp-text border-ctp-overlay2 hover:bg-ctp-surface2 cursor-pointer";
+};
+
+const getSaveTitle = (
+  title: string,
+  recurrenceType: RecurrenceType,
+  weeklyHasDay: boolean,
+) => {
+  if (!title.trim().length) {
+    return "Title is required";
+  }
+  if (recurrenceType === "weekly" && !weeklyHasDay) {
+    return "Select at least one weekday";
+  }
+  return "Save changes";
+};
+
 export default function TodoItemModal({
+  onClose,
+  onDelete,
+  onSave,
   open,
   todo,
-  onClose,
-  onSave,
-  onDelete,
 }: {
-  open: boolean;
-  todo: Todo | null;
   onClose: () => void;
-  onSave: (patch: Partial<Todo>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onSave: (patch: Partial<Todo>) => Promise<void>;
+  open: boolean;
+  todo: null | Todo;
 }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState<string>("");
@@ -71,16 +95,28 @@ export default function TodoItemModal({
 
     setRecurrenceType((todo.recurrenceType as RecurrenceType) ?? "none");
     setIntervalDays(
-      typeof todo.recurrenceIntervalDays === "number" && todo.recurrenceIntervalDays > 0
+      typeof todo.recurrenceIntervalDays === "number" &&
+        todo.recurrenceIntervalDays > 0
         ? todo.recurrenceIntervalDays
         : 2,
     );
-    setWeekdays(Array.isArray(todo.recurrenceWeekdays) && todo.recurrenceWeekdays.length
-      ? todo.recurrenceWeekdays
-      : ["mon"]);
+    setWeekdays(
+      Array.isArray(todo.recurrenceWeekdays) && todo.recurrenceWeekdays.length
+        ? todo.recurrenceWeekdays
+        : ["mon"],
+    );
   }, [todo]);
 
-  const canSave = useMemo(() => title.trim().length > 0 && !busy, [title, busy]);
+  // Additional rule: Weekly must have at least 1 weekday selected
+  const weeklyHasDay = useMemo(() => {
+    if (recurrenceType !== "weekly") return true;
+    return Array.isArray(weekdays) && weekdays.length > 0;
+  }, [recurrenceType, weekdays]);
+
+  const canSave = useMemo(
+    () => title.trim().length > 0 && !busy && weeklyHasDay,
+    [title, busy, weeklyHasDay],
+  );
 
   if (!open || !todo) return null;
 
@@ -89,13 +125,14 @@ export default function TodoItemModal({
     setBusy(true);
     try {
       const patch: Partial<Todo> = {
-        title: title.trim(),
-        description: description.trim() ? description.trim() : null,
         completed,
+        description: description.trim() ? description.trim() : null,
         dueDate: due.trim() ? new Date(`${due}T00:00:00`).toISOString() : null,
+        recurrenceIntervalDays:
+          recurrenceType === "every_n_days" ? intervalDays : null,
         recurrenceType,
-        recurrenceIntervalDays: recurrenceType === "every_n_days" ? intervalDays : null,
         recurrenceWeekdays: recurrenceType === "weekly" ? weekdays : null,
+        title: title.trim(),
       };
       await onSave(patch);
       onClose();
@@ -105,9 +142,10 @@ export default function TodoItemModal({
   }
 
   async function handleDelete() {
+    if (busy) return;
     setBusy(true);
     try {
-      await onDelete(todo.id);
+      await onDelete(todo!.id);
       onClose();
     } finally {
       setBusy(false);
@@ -120,19 +158,32 @@ export default function TodoItemModal({
     );
   }
 
+  // Disabled reasons for tooltips (nice UX)
+  const saveTitle = busy
+    ? "Saving…"
+    : getSaveTitle(title, recurrenceType, weeklyHasDay);
+
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center">
+    <div className="fixed inset-0 z-70 flex items-center justify-center">
       <div
+        aria-hidden="true"
         className="absolute inset-0 bg-black/60"
         onClick={onClose}
-        aria-hidden="true"
       />
-      <div className="relative w-[min(820px,92vw)] rounded border border-ctp-overlay2 bg-ctp-surface1 p-4 shadow-lg">
+      <div className="border-ctp-overlay2 bg-ctp-surface1 relative w-[min(820px,92vw)] rounded border p-4 shadow-lg">
         <div className="flex items-center justify-between pb-3">
-          <h3 className="text-lg font-semibold text-ctp-text">Edit To-Do</h3>
+          <h3 className="text-ctp-text text-lg font-semibold">Edit To-Do</h3>
           <button
+            aria-disabled={busy}
+            className={cx(
+              "bg-ctp-crust text-ctp-text rounded px-2 py-1 text-sm font-semibold transition",
+              busy
+                ? NO_SMOKING_OVERLAY
+                : "hover:bg-ctp-surface2 cursor-pointer",
+            )}
+            disabled={busy}
             onClick={onClose}
-            className="rounded bg-ctp-crust px-2 py-1 text-sm font-semibold text-ctp-text hover:bg-ctp-surface2 transition"
+            title={busy ? "Busy…" : "Close"}
           >
             ✕
           </button>
@@ -142,74 +193,103 @@ export default function TodoItemModal({
           {/* Left */}
           <div className="space-y-3">
             <div>
-              <div className="text-sm font-semibold text-ctp-text">Title</div>
+              <div className="text-ctp-text text-sm font-semibold">Title</div>
               <input
-                value={title}
+                className={cx(
+                  "border-ctp-overlay2 bg-ctp-base text-ctp-text mt-1 w-full rounded border px-3 py-2 text-sm outline-none",
+                  "focus:ring-ctp-overlay2 focus:ring-2",
+                  busy && "cursor-not-allowed opacity-60",
+                )}
+                disabled={busy}
                 onChange={(e) => setTitle(e.target.value)}
-                className="mt-1 w-full rounded border border-ctp-overlay2 bg-ctp-base px-3 py-2 text-sm text-ctp-text outline-none focus:ring-2 focus:ring-ctp-overlay2"
+                value={title}
               />
             </div>
 
             <div>
-              <div className="text-sm font-semibold text-ctp-text">
+              <div className="text-ctp-text text-sm font-semibold">
                 Description
               </div>
               <textarea
-                value={description}
+                className={cx(
+                  "border-ctp-overlay2 bg-ctp-base text-ctp-text mt-1 w-full resize-none rounded border px-3 py-2 text-sm outline-none",
+                  "focus:ring-ctp-overlay2 focus:ring-2",
+                  busy && "cursor-not-allowed opacity-60",
+                )}
+                disabled={busy}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={5}
-                className="mt-1 w-full resize-none rounded border border-ctp-overlay2 bg-ctp-base px-3 py-2 text-sm text-ctp-text outline-none focus:ring-2 focus:ring-ctp-overlay2"
+                value={description}
               />
             </div>
           </div>
 
           {/* Right */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between rounded border border-ctp-overlay2 bg-ctp-surface0 p-3">
+            <div className="border-ctp-overlay2 bg-ctp-surface0 flex items-center justify-between rounded border p-3">
               <div>
-                <div className="text-sm font-semibold text-ctp-text">
+                <div className="text-ctp-text text-sm font-semibold">
                   Completed
                 </div>
-                <div className="text-xs text-ctp-subtext0">
+                <div className="text-ctp-subtext0 text-xs">
                   Toggle completion state
                 </div>
               </div>
+
               <button
-                onClick={() => setCompleted((v) => !v)}
-                className={[
-                  "h-8 w-8 rounded border flex items-center justify-center font-bold",
+                aria-disabled={busy}
+                className={cx(
+                  "flex h-8 w-8 items-center justify-center rounded border font-bold transition",
+                  busy ? NO_SMOKING_OVERLAY : "cursor-pointer",
                   completed
                     ? "bg-ctp-green border-ctp-green text-ctp-base"
-                    : "bg-transparent border-ctp-overlay2 text-ctp-text",
-                ].join(" ")}
-                title="Toggle complete"
+                    : "border-ctp-overlay2 text-ctp-text bg-transparent",
+                )}
+                disabled={busy}
+                onClick={() => {
+                  if (busy) return;
+                  setCompleted((v) => !v);
+                }}
+                title={busy ? "Busy…" : "Toggle complete"}
               >
                 {completed ? "✓" : ""}
               </button>
             </div>
 
             <div>
-              <div className="text-sm font-semibold text-ctp-text">Due date</div>
+              <div className="text-ctp-text text-sm font-semibold">
+                Due date
+              </div>
               <input
+                className={cx(
+                  "border-ctp-overlay2 bg-ctp-base text-ctp-text mt-1 w-full rounded border px-3 py-2 text-sm outline-none",
+                  "focus:ring-ctp-overlay2 focus:ring-2",
+                  busy ? "cursor-not-allowed opacity-60" : "cursor-pointer",
+                )}
+                disabled={busy}
+                onChange={(e) => setDue(e.target.value)}
                 type="date"
                 value={due}
-                onChange={(e) => setDue(e.target.value)}
-                className="mt-1 w-full rounded border border-ctp-overlay2 bg-ctp-base px-3 py-2 text-sm text-ctp-text outline-none focus:ring-2 focus:ring-ctp-overlay2"
               />
             </div>
 
-            <div className="rounded border border-ctp-overlay2 bg-ctp-surface0 p-3">
-              <div className="text-sm font-semibold text-ctp-text">
+            <div className="border-ctp-overlay2 bg-ctp-surface0 rounded border p-3">
+              <div className="text-ctp-text text-sm font-semibold">
                 Recurrence
               </div>
 
               <div className="mt-2">
                 <select
-                  value={recurrenceType}
+                  className={cx(
+                    "border-ctp-overlay2 bg-ctp-base text-ctp-text w-full rounded border px-3 py-2 text-sm outline-none",
+                    "focus:ring-ctp-overlay2 focus:ring-2",
+                    busy ? "cursor-not-allowed opacity-60" : "cursor-pointer",
+                  )}
+                  disabled={busy}
                   onChange={(e) =>
                     setRecurrenceType(e.target.value as RecurrenceType)
                   }
-                  className="w-full rounded border border-ctp-overlay2 bg-ctp-base px-3 py-2 text-sm text-ctp-text outline-none focus:ring-2 focus:ring-ctp-overlay2"
+                  value={recurrenceType}
                 >
                   <option value="none">None</option>
                   <option value="daily">Daily</option>
@@ -220,26 +300,45 @@ export default function TodoItemModal({
 
               {recurrenceType === "weekly" ? (
                 <div className="mt-3">
-                  <div className="text-xs text-ctp-subtext0 pb-2">
+                  <div className="text-ctp-subtext0 pb-2 text-xs">
                     Choose weekdays
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {WEEKDAYS.map((d) => (
-                      <button
-                        key={d.key}
-                        onClick={() => toggleWeekday(d.key)}
-                        className={[
-                          "rounded px-2 py-1 text-xs font-semibold transition border",
-                          weekdays.includes(d.key)
-                            ? "bg-ctp-green text-ctp-base border-ctp-green"
-                            : "bg-ctp-base text-ctp-text border-ctp-overlay2 hover:bg-ctp-surface2",
-                        ].join(" ")}
-                      >
-                        {d.label}
-                      </button>
-                    ))}
+                    {WEEKDAYS.map((d) => {
+                      const selected = weekdays.includes(d.key);
+                      // Treat selected day as "not clickable" if you want that UX;
+                      // here we keep it clickable (so you can unselect), but disable all when busy.
+                      const canClick = !busy;
+
+                      return (
+                        <button
+                          aria-disabled={!canClick}
+                          className={cx(
+                            "rounded border px-2 py-1 text-xs font-semibold transition",
+                            !canClick
+                              ? NO_SMOKING_OVERLAY
+                              : getSelectedClass(selected),
+                          )}
+                          disabled={!canClick}
+                          key={d.key}
+                          onClick={() => {
+                            if (!canClick) return;
+                            toggleWeekday(d.key);
+                          }}
+                          title={!canClick ? "Busy…" : "Toggle weekday"}
+                        >
+                          {d.label}
+                        </button>
+                      );
+                    })}
                   </div>
-                  <div className="pt-2 text-xs text-ctp-subtext0">
+
+                  <div
+                    className={cx(
+                      "pt-2 text-xs",
+                      weeklyHasDay ? "text-ctp-subtext0" : "text-ctp-red",
+                    )}
+                  >
                     Weekly recurrence requires at least one day selected.
                   </div>
                 </div>
@@ -247,15 +346,20 @@ export default function TodoItemModal({
 
               {recurrenceType === "every_n_days" ? (
                 <div className="mt-3">
-                  <div className="text-xs text-ctp-subtext0 pb-2">
+                  <div className="text-ctp-subtext0 pb-2 text-xs">
                     Interval (days)
                   </div>
                   <input
-                    type="number"
+                    className={cx(
+                      "border-ctp-overlay2 bg-ctp-base text-ctp-text w-full rounded border px-3 py-2 text-sm outline-none",
+                      "focus:ring-ctp-overlay2 focus:ring-2",
+                      busy ? "cursor-not-allowed opacity-60" : "cursor-text",
+                    )}
+                    disabled={busy}
                     min={1}
-                    value={intervalDays}
                     onChange={(e) => setIntervalDays(Number(e.target.value))}
-                    className="w-full rounded border border-ctp-overlay2 bg-ctp-base px-3 py-2 text-sm text-ctp-text outline-none focus:ring-2 focus:ring-ctp-overlay2"
+                    type="number"
+                    value={intervalDays}
                   />
                 </div>
               ) : null}
@@ -265,25 +369,45 @@ export default function TodoItemModal({
 
         <div className="flex items-center justify-between pt-4">
           <button
-            onClick={() => void handleDelete()}
+            aria-disabled={busy}
+            className={cx(
+              "bg-ctp-red text-ctp-base rounded px-3 py-2 text-sm font-semibold transition",
+              busy ? NO_SMOKING_OVERLAY : "cursor-pointer hover:opacity-90",
+            )}
             disabled={busy}
-            className="rounded bg-ctp-red px-3 py-2 text-sm font-semibold text-ctp-base hover:opacity-90 disabled:opacity-60 transition"
+            onClick={() => void handleDelete()}
+            title={busy ? "Busy…" : "Delete this task"}
           >
             Delete
           </button>
 
           <div className="flex items-center gap-2">
             <button
-              onClick={onClose}
+              aria-disabled={busy}
+              className={cx(
+                "bg-ctp-crust text-ctp-text rounded px-3 py-2 text-sm font-semibold transition",
+                busy
+                  ? NO_SMOKING_OVERLAY
+                  : "hover:bg-ctp-surface2 cursor-pointer",
+              )}
               disabled={busy}
-              className="rounded bg-ctp-crust px-3 py-2 text-sm font-semibold text-ctp-text hover:bg-ctp-surface2 disabled:opacity-60 transition"
+              onClick={onClose}
+              title={busy ? "Busy…" : "Cancel"}
             >
               Cancel
             </button>
+
             <button
-              onClick={() => void handleSave()}
+              aria-disabled={!canSave}
+              className={cx(
+                "bg-ctp-green text-ctp-base rounded px-3 py-2 text-sm font-semibold transition",
+                canSave
+                  ? "cursor-pointer hover:opacity-90"
+                  : NO_SMOKING_OVERLAY,
+              )}
               disabled={!canSave}
-              className="rounded bg-ctp-green px-3 py-2 text-sm font-semibold text-ctp-base hover:opacity-90 disabled:opacity-60 transition"
+              onClick={() => void handleSave()}
+              title={saveTitle}
             >
               Save
             </button>
@@ -292,4 +416,15 @@ export default function TodoItemModal({
       </div>
     </div>
   );
+}
+
+function toDateInputValue(dueDate: null | string) {
+  if (!dueDate) return "";
+  const d = new Date(dueDate);
+  if (Number.isNaN(d.getTime())) return "";
+  // yyyy-mm-dd in local time
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }

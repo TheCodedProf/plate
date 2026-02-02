@@ -9,10 +9,6 @@ export function addDates(a: Date, b: Date): Date {
   return new Date(Number(a) + Number(b));
 }
 
-export function scaleDate(date: Date, scalar: number): Date {
-  return new Date(Number(date) * scalar);
-}
-
 export function truncDate(date: Date): Date {
   const s: number = Number(second) * date.getSeconds();
   const m: number = Number(minute) * date.getMinutes();
@@ -20,30 +16,41 @@ export function truncDate(date: Date): Date {
   return new Date(Number(date) - (h + m + s));
 }
 
-export const formatTimeLocal = (d: Date) => {
+export const formatTimeLocal = (d: Date, format: string) => {
+  const us = format === "12";
   return new Date(d).toLocaleTimeString([], {
     hour: "numeric",
+    hour12: us,
     minute: "2-digit",
-    hour12: false,
   });
 };
 
-export const formatTime = (event: CalendarEvent, view: Date) => {
+export const formatTime = (
+  event: CalendarEvent,
+  view: Date,
+  format: string = "24",
+) => {
   view = new Date(view);
   event.start = new Date(event.start);
   event.end = new Date(event.end);
-  return event.allDay
-    ? "All day"
-    : `${dateString(view) == dateString(event.start) ? formatTimeLocal(event.start) : ""}–${dateString(view) == dateString(event.end) ? formatTimeLocal(event.end) : ""}`;
+
+  const timeA =
+    dateString(view) == dateString(event.start)
+      ? formatTimeLocal(event.start, format)
+      : "";
+  const timeB =
+    dateString(view) == dateString(event.end)
+      ? formatTimeLocal(event.end, format)
+      : "";
+
+  return event.allDay ? "All day" : `${timeA}–${timeB}`;
 };
 
 export function checkOverlap(
   timespan_a: [Date, Date],
   timespan_b: [Date, Date],
 ): boolean {
-  if (timespan_a[1] < timespan_b[0] || timespan_b[1] < timespan_a[0])
-    return false;
-  return true;
+  return !(timespan_a[1] < timespan_b[0] || timespan_b[1] < timespan_a[0]);
 }
 
 export const dateString = (date: Date) => {
