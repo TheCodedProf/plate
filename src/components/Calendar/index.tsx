@@ -51,7 +51,6 @@ const pickView = (
           view={view}
         />
       );
-    case "month":
     default:
       return (
         <MonthView
@@ -122,14 +121,14 @@ export function CalendarWidget({ initialMonth, setSettings, settings }: Props) {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   function openModal(initialEvent?: Partial<typeof eventModel.$inferInsert>) {
-    if (!initialEvent) {
-      setEventData(null);
-    } else {
+    if (initialEvent) {
       if (initialEvent.id) {
         setEventData(localEvents.find((e) => e.id === initialEvent.id) ?? null);
       } else {
         setEventData(initialEvent);
       }
+    } else {
+      setEventData(null);
     }
     setEditorOpen(true);
   }
@@ -137,15 +136,20 @@ export function CalendarWidget({ initialMonth, setSettings, settings }: Props) {
   const getViewDisplayText = () => {
     if (!mounted) return null; //maybe assert this to error out
 
-    if (selectedView === "day") {
-      return view.toLocaleDateString();
-    } else if (selectedView === "week") {
-      return `CW: ${getWeek(view) % 52}`;
-    } else if (selectedView === "month") {
-      return view.toLocaleDateString("default", {
-        month: "long",
-        year: "numeric",
-      });
+    switch (selectedView) {
+      case "day": {
+        return view.toLocaleDateString();
+      }
+      case "month": {
+        return view.toLocaleDateString("default", {
+          month: "long",
+          year: "numeric",
+        });
+      }
+      case "week": {
+        return `CW: ${getWeek(view) % 52}`;
+      }
+      // No default
     }
     return "";
   };

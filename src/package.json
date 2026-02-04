@@ -24,6 +24,7 @@
   "devDependencies": {
     "@catppuccin/tailwindcss": "^1.0.0",
     "@tailwindcss/postcss": "^4",
+    "@types/bun": "^1.3.8",
     "@types/node": "^20",
     "@types/pg": "^8.16.0",
     "@types/react": "^19",
@@ -33,6 +34,7 @@
     "eslint-config-next": "16.1.4",
     "eslint-plugin-perfectionist": "^5.4.0",
     "eslint-plugin-sonarjs": "^3.0.6",
+    "eslint-plugin-unicorn": "^62.0.0",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "tailwindcss": "^4",

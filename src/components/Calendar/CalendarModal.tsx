@@ -29,7 +29,7 @@ export function CalendarModal({
     calendarProp ?? {
       default: false,
       name: "",
-      userId: !session.isPending ? session.data!.user.id : "",
+      userId: session.isPending ? "" : session.data!.user.id,
     },
   );
 
@@ -164,15 +164,9 @@ export function CalendarModal({
 }
 
 async function upsertCalendar(calendar: typeof calendars.$inferInsert) {
-  let method: string;
-  if (Object.keys(calendar).includes("id")) {
-    method = "PUT";
-  } else {
-    method = "POST";
-  }
   const res = await fetch("/api/calendar", {
     body: JSON.stringify(calendar),
-    method,
+    method: Object.keys(calendar).includes("id") ? "PUT" : "POST",
   });
   return res.json();
 }

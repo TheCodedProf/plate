@@ -27,10 +27,8 @@ export async function GET(_request: Request) {
   });
 
   return NextResponse.json(
-    events?.calendars
-      .map((calendar) =>
-        calendar.events.map((event) => ({ ...event, color: calendar.color })),
-      )
-      .flat() ?? [],
+    events?.calendars.flatMap((calendar) =>
+      calendar.events.map((event) => ({ ...event, color: calendar.color })),
+    ) ?? [],
   );
 }

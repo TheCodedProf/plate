@@ -1,10 +1,8 @@
 "use client";
-import { settings as settingsModel } from "@db";
 // Needed for rendering DateTime in the correct TZ
-//
-import { createRef, ReactNode, Ref, useEffect, useMemo } from "react";
 
-import { calendarEvents } from "@/lib/db";
+import { calendarEvents, settings as settingsModel } from "@db";
+import { createRef, ReactNode, Ref, useEffect, useMemo } from "react";
 
 import { CalendarEvent } from "../lib/CalendarEvent";
 import { checkOverlap } from "../lib/time";
@@ -16,6 +14,20 @@ import {
   hour,
   truncDate,
 } from "../lib/time";
+
+interface RelativeEvent {
+  event: CalendarEvent & { color: string };
+  start: number;
+  // eslint-disable-next-line perfectionist/sort-interfaces
+  end: number;
+
+  /* computed later  */
+  start_slot: number;
+  // eslint-disable-next-line perfectionist/sort-interfaces
+  end_slot: number;
+  // eslint-disable-next-line perfectionist/sort-interfaces
+  column: number;
+}
 
 export default function DayView({
   events,
@@ -37,34 +49,29 @@ export default function DayView({
     return ts as [Date, Date];
   }, [view]);
 
-  interface RelativeEvent {
-    column: number;
-    end: number;
-    end_slot: number;
-    event: CalendarEvent & { color: string };
-    start: number;
-    start_slot: number;
-  }
   /* filter out events that are not visible, and convert times to be relative *
    * to the visible timespan                                                  */
   const filtered_events: Array<RelativeEvent> = events
     .filter((event) => checkOverlap(timespan, [event.start, event.end]))
     .map((event) => {
       const relEvent: RelativeEvent = {
-        column: 0,
+        event,
+        // eslint-disable-next-line perfectionist/sort-objects
         end: fMapPerc(
           Number(event.end),
           Number(timespan[0]),
           Number(timespan[1]),
         ),
-        end_slot: 0,
-        event,
         start: fMapPerc(
           Number(event.start),
           Number(timespan[0]),
           Number(timespan[1]),
         ),
         start_slot: 0,
+        // eslint-disable-next-line perfectionist/sort-objects
+        end_slot: 0,
+        // eslint-disable-next-line perfectionist/sort-objects
+        column: 0,
       };
       return relEvent;
     });
@@ -77,16 +84,12 @@ export default function DayView({
   const lines_per_day: number = 24;
 
   /* compile a list of all event times */
-  const time_splits: Array<number> = [0.0, 1.0];
-  for (let i: number = 1; i < lines_per_day; i++)
-    time_splits.push(i / lines_per_day);
-  filtered_events.forEach((event) => {
-    if (!time_splits.includes(event.start)) time_splits.push(event.start);
-    if (!time_splits.includes(event.end)) time_splits.push(event.end);
-  });
-  time_splits.sort();
+  const time_splits: Array<number> = getTimeSplits(
+    filtered_events,
+    lines_per_day,
+  );
 
-  const line_markers: Array<number> = [];
+  const line_markers: Array<number> = []; // the indexes of the time splits that should have markers
   /* arrange the events on the grid */
   const active_events: Array<null | RelativeEvent> = [];
   let i: number = 1;
@@ -123,21 +126,10 @@ export default function DayView({
   const grid_cols: number = Math.max(active_events.length, 1);
 
   /* convert from positions to sizes */
-  let grid_row_str: string = "";
-  let prev_grid_row: number = 0;
-  for (const row of time_splits.slice(1)) {
-    const row_size: number = row - prev_grid_row;
-    prev_grid_row = row;
-    grid_row_str += ` ${Math.round(row_size * 100)}fr`;
-  }
+  const grid_row_str: string = createRowString(time_splits);
 
   /* the timestamps on the side of the timeline */
-  const timestamps: Array<Date> = [];
-  let latest_timestamp: number = Number(timespan[0]);
-  while (latest_timestamp < Number(timespan[1])) {
-    timestamps.push(new Date(latest_timestamp));
-    latest_timestamp += Number(hour);
-  }
+  const timestamps: Array<Date> = createTimeStamps(lines_per_day, timespan);
 
   const refs = timestamps.map(() => createRef<HTMLDivElement>());
 
@@ -160,13 +152,10 @@ export default function DayView({
     <div
       //onLoad={() => scrollTo({ top: 100, behavior: "instant" })}
       className="z-1 grid min-h-max w-full items-stretch p-1"
-      style={Object.assign(
-        {
-          gridAutoColumns: "max-content " + "1fr ".repeat(grid_cols),
-          gridTemplateRows: grid_row_str,
-        },
-        !filtered_events.length ? { height: "100%" } : {},
-      )}
+      style={{
+        gridAutoColumns: "max-content " + "1fr ".repeat(grid_cols),
+        gridTemplateRows: grid_row_str,
+      }}
     >
       {time_marks}
       {filtered_events.map((event, i) => {
@@ -199,6 +188,58 @@ export default function DayView({
   );
 }
 
+/* * * * * * * * * * *
+ * Utility Functions *
+ * * * * * * * * * * */
+
+function createRowString(time_splits: Array<number>): string {
+  let row_str: string = "";
+  let prev_row: number = time_splits[0];
+  for (const row of time_splits.slice(1)) {
+    const row_size: number = row - prev_row;
+    prev_row = row;
+    row_str += ` ${Math.round(row_size * 100)}fr`;
+  }
+  return row_str;
+}
+
+function createTimeStamps(count: number, timespan: [Date, Date]): Array<Date> {
+  const span: [number, number] = [Number(timespan[0]), Number(timespan[1])];
+  const diff: number = span[1] - span[0];
+
+  const timestamps: Array<Date> = [];
+  let latest_timestamp: number = span[0];
+  while (latest_timestamp < span[1]) {
+    timestamps.push(new Date(latest_timestamp));
+    latest_timestamp += diff / count;
+  }
+  return timestamps;
+}
+
+function fMapPerc(val: number, min: number, max: number): number {
+  return Math.max(0, Math.min(1, (val - min) / (max - min)));
+}
+
+function getTimeSplits(
+  events: Array<RelativeEvent>,
+  fixed_splits: number,
+): Array<number> {
+  // eslint-disable-next-line unicorn/no-zero-fractions
+  const time_splits: Array<number> = [0.0, 1.0];
+  for (let i: number = 1; i < fixed_splits; i++)
+    time_splits.push(i / fixed_splits);
+  for (const event of events) {
+    if (!time_splits.includes(event.start)) time_splits.push(event.start);
+    if (!time_splits.includes(event.end)) time_splits.push(event.end);
+  }
+  return time_splits.toSorted();
+}
+
+/* * * * * * * *
+ * ReactNodes  *
+ * * * * * * * */
+
+// eslint-disable-next-line perfectionist/sort-modules
 function DayEvent(
   event: CalendarEvent & { color: string },
   top: number,
@@ -229,10 +270,6 @@ function DayEvent(
   );
 }
 
-function fMapPerc(val: number, min: number, max: number): number {
-  return Math.max(0.0, Math.min(1.0, (val - min) / (max - min)));
-}
-
 function TimeMarker(
   key: string,
   ref: Ref<HTMLDivElement>,
@@ -251,7 +288,6 @@ function TimeMarker(
     <div
       className="text-right"
       key={key}
-      ref={ref}
       style={{
         gridColumn: 1,
         gridRowEnd: end,
@@ -268,6 +304,7 @@ function TimeMarker(
       onClick={() => {
         openModal({ end: time_end, start: time_start });
       }}
+      ref={ref}
       style={{
         gridColumnEnd: columns + 2,
         gridColumnStart: 1,

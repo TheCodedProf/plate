@@ -18,9 +18,9 @@ const DEFAULTS: TodoWidgetSettings = {
 const STORAGE_KEY = "capstone:todoWidgetSettings";
 
 export function loadTodoWidgetSettings(): TodoWidgetSettings {
-  if (typeof window === "undefined") return DEFAULTS;
+  if (globalThis.window === undefined) return DEFAULTS;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = globalThis.localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULTS;
     const parsed = JSON.parse(raw) as Partial<TodoWidgetSettings>;
     const completionBehavior =
@@ -32,8 +32,8 @@ export function loadTodoWidgetSettings(): TodoWidgetSettings {
 }
 
 export function saveTodoWidgetSettings(settings: TodoWidgetSettings) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  if (globalThis.window === undefined) return;
+  globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 }
 
 function cx(...classes: Array<false | null | string | undefined>) {

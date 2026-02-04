@@ -50,7 +50,7 @@ export function UserSettings({
       setEmailError("");
       setAvatarError("");
       setPasswordError("");
-    }, 10000);
+    }, 10_000);
     return () => clearTimeout(to);
   }, [nameError, emailError, avatarError, passwordError]);
 
@@ -162,8 +162,10 @@ export function UserSettings({
               if (!avatar) return;
               const base64 = await new Promise<string>((resolve, reject) => {
                 const reader = new FileReader();
-                reader.onload = () => resolve(reader.result as string);
-                reader.onerror = reject;
+                reader.addEventListener("load", () =>
+                  resolve(reader.result as string),
+                );
+                reader.addEventListener("error", reject);
                 reader.readAsDataURL(avatar[0]);
               });
               authClient.updateUser(

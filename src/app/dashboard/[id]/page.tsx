@@ -33,7 +33,9 @@ export default function DashboardPage() {
 
   return (
     <main className="h-full max-h-screen min-h-screen w-full overflow-hidden">
-      {!session.isPending ? (
+      {session.isPending ? (
+        <></>
+      ) : (
         <Image
           alt="User Avatar"
           className="fixed top-2 right-2 h-12 w-12 cursor-pointer rounded-full"
@@ -44,8 +46,6 @@ export default function DashboardPage() {
           src={session.data?.user.image ?? "/icon.svg"}
           width={48}
         />
-      ) : (
-        <></>
       )}
       <Suspense fallback={<Loading />}>
         {/*<Settings />*/}

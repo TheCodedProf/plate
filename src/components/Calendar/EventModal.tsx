@@ -285,15 +285,9 @@ export function eventToApiPayload(e: typeof calendarEvents.$inferInsert) {
 export async function upsertEventRequest(
   event: typeof calendarEvents.$inferInsert,
 ) {
-  let method: string;
-  if (event.id) {
-    method = "PUT";
-  } else {
-    method = "POST";
-  }
   const res = await fetch("/api/event", {
     body: JSON.stringify(eventToApiPayload(event)),
-    method,
+    method: event.id ? "PUT" : "POST",
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
@@ -328,7 +322,7 @@ function saveEvent(
   if (!draft) return;
   console.log(draft);
 
-  const [start, end] = [new Date(draft.start), new Date(draft.end)].sort(
+  const [start, end] = [new Date(draft.start), new Date(draft.end)].toSorted(
     (a, b) => a.getTime() - b.getTime(),
   );
 
@@ -338,7 +332,7 @@ function saveEvent(
     color:
       calendars.find((c) => c.id === draft.calendarId)?.color || "lavender",
     end,
-    id: draft.id ? draft.id : crypto.randomUUID(),
+    id: draft.id ?? crypto.randomUUID(),
     location: draft.location || null,
     notes: draft.notes || null,
     start,
@@ -348,12 +342,12 @@ function saveEvent(
   setLocalEvents((prev) => {
     const idx = prev.findIndex((e) => e.id === optimistic.id);
     if (idx === -1)
-      return [...prev, optimistic].sort(
+      return [...prev, optimistic].toSorted(
         (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime(),
       );
     const copy = prev.slice();
     copy[idx] = optimistic;
-    return copy.sort((a, b) => +a.start - +b.start);
+    return copy.toSorted((a, b) => +a.start - +b.start);
   });
 
   try {

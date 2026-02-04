@@ -22,7 +22,7 @@ export const getWeek = (date: Date, weekStart = 0): number => {
   return (
     1 +
     Math.round(
-      (nearestWeekStart.getTime() - firstWeekStart.getTime()) / 604800000,
+      (nearestWeekStart.getTime() - firstWeekStart.getTime()) / 604_800_000,
     )
   );
 };

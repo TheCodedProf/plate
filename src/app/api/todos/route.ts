@@ -35,7 +35,7 @@ export async function POST(request: Request) {
 
   const title = String(body?.title ?? "").trim();
   const description =
-    body?.description != null ? String(body.description).trim() : null;
+    body?.description == null ? null : String(body.description).trim();
 
   // Allow null/undefined. Accept ISO string or Date-ish
   const dueDate =
