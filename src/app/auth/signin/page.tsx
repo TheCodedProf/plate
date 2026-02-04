@@ -15,7 +15,6 @@ export default function LoginPage() {
     event.preventDefault();
     await authClient.signIn.email(
       {
-        callbackURL: "/dashboard",
         email,
         password,
       },
@@ -23,6 +22,9 @@ export default function LoginPage() {
         onError: (error) => {
           console.warn(error.error);
           setError(error.error.message);
+        },
+        onSuccess: () => {
+          router.push("/dashboard");
         },
       },
     );

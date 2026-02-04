@@ -43,23 +43,27 @@ export default function SignupPage() {
       });
       await authClient.signUp.email(
         {
-          callbackURL: "/dashboard",
           email,
           image: base64,
           name,
           password,
         },
-        { onError: (error) => setError(error.error.message) },
+        {
+          onError: (error) => setError(error.error.message),
+          onSuccess: () => router.push("/dashboard"),
+        },
       );
     } else {
       await authClient.signUp.email(
         {
-          callbackURL: "/dashboard",
           email,
           name,
           password,
         },
-        { onError: (error) => setError(error.error.message) },
+        {
+          onError: (error) => setError(error.error.message),
+          onSuccess: () => router.push("/dashboard"),
+        },
       );
     }
   };
