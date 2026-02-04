@@ -8,6 +8,7 @@ import { CalendarEvent } from "../lib/CalendarEvent";
 import { checkOverlap } from "../lib/time";
 import {
   addDates,
+  almost_day,
   day,
   formatTime,
   formatTimeLocal,
@@ -49,10 +50,16 @@ export default function DayView({
     return ts as [Date, Date];
   }, [view]);
 
+  /* required to avoid displaying events that start at midnight */
+  const timespan_filter: [Date, Date] = [
+    timespan[0],
+    addDates(timespan[0], almost_day),
+  ];
+
   /* filter out events that are not visible, and convert times to be relative *
    * to the visible timespan                                                  */
   const filtered_events: Array<RelativeEvent> = events
-    .filter((event) => checkOverlap(timespan, [event.start, event.end]))
+    .filter((event) => checkOverlap(timespan_filter, [event.start, event.end]))
     .map((event) => {
       const relEvent: RelativeEvent = {
         event,

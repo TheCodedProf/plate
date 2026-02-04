@@ -1,6 +1,7 @@
 import { CalendarEvent } from "./CalendarEvent";
 
-export const day: Date = new Date("1970-01-01T23:59:59.999+00:00");
+export const almost_day: Date = new Date("1970-01-01T23:59:59.999+00:00");
+export const day: Date = new Date("1970-01-02T00:00:00.000+00:00");
 export const hour: Date = new Date("1970-01-01T01:00:00.000+00:00");
 export const minute: Date = new Date("1970-01-01T00:01:00.000+00:00");
 export const second: Date = new Date("1970-01-01T00:00:01.000+00:00");
