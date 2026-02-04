@@ -65,13 +65,9 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="bg-ctp-base text-ctp-text grid h-screen grid-cols-2">
-      <div />
-      <div className="flex items-center justify-center">
-        <form
-          className="bg-ctp-surface0 mx-40 flex flex-col gap-6 rounded-lg px-8 py-12"
-          onSubmit={handleSignUp}
-        >
+    <div className="bg-ctp-base text-ctp-text flex h-screen items-center justify-center">
+      <div className="bg-ctp-surface0 flex flex-col items-center justify-center gap-6 rounded-lg px-8 py-12">
+        <form className="flex flex-col gap-6" onSubmit={handleSignUp}>
           <p className="-mb-8 text-center text-2xl font-bold">Sign Up</p>
           <label className="text-ctp-subtext0 flex flex-col gap-2 text-xs">
             Name:
@@ -94,16 +90,20 @@ export default function SignupPage() {
             />
           </label>
           <label className="text-ctp-subtext0 flex flex-col gap-2 text-xs">
-            Avatar:
-            {avatarFiles && (
+            <div className="flex justify-between">
+              <p>Avatar:</p>
               <Image
                 alt="Avatar"
                 className="h-16 w-16 rounded-full"
                 height={64}
-                src={URL.createObjectURL(avatarFiles[0])}
+                src={
+                  avatarFiles?.length
+                    ? URL.createObjectURL(avatarFiles[0])
+                    : "/icon.svg"
+                }
                 width={64}
               />
-            )}
+            </div>
             <input
               className="border-ctp-overlay2 rounded-md border px-2 py-1 text-lg"
               onChange={(e) => {
@@ -136,21 +136,19 @@ export default function SignupPage() {
             />
           </label>
           {error && <p className="text-ctp-red">{error}</p>}
-          <div className="flex flex-col gap-2">
-            <button
-              className="bg-ctp-green-600 text-ctp-surface0 cursor-pointer rounded-md px-2 py-1 text-lg font-bold"
-              type="submit"
-            >
-              Sign Up
-            </button>
-            <button
-              className="bg-ctp-overlay0 text-ctp-surface0 cursor-pointer rounded-md px-2 py-1 text-lg font-bold"
-              onClick={() => router.push("/auth/signin")}
-            >
-              Log In
-            </button>
-          </div>
+          <button
+            className="bg-ctp-green-600 text-ctp-surface0 cursor-pointer rounded-md px-2 py-1 text-lg font-bold"
+            type="submit"
+          >
+            Sign Up
+          </button>
         </form>
+        <button
+          className="bg-ctp-overlay0 text-ctp-surface0 w-full cursor-pointer rounded-md px-2 py-1 text-lg font-bold"
+          onClick={() => router.push("/auth/signin")}
+        >
+          Log In
+        </button>
       </div>
     </div>
   );
