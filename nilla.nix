@@ -13,6 +13,18 @@ nilla.create (
         };
       };
 
+      packages.plateRunScript = {
+        systems = [ "aarch64-linux" ];
+        package = {
+          writeScriptBin
+        }: writeScriptBin "start" ''
+            /bin/bun i
+            /bin/bunx drizzle-kit migrate
+            /bin/bun run build
+            /bin/bun run start
+          '';
+      };
+
       packages.plateSite = {
         systems = [ "x86_64-linux" ];
         package =
@@ -24,7 +36,8 @@ nilla.create (
             src = ./src;
 
             buildPhase = ''
-              cp -r . $out
+              mkdir -p $out/plate
+              cp -r . $out/plate
             '';
           };
       };
@@ -37,13 +50,13 @@ nilla.create (
             buildEnv,
             bun,
             bash,
+            nodejs_24
           }:
           dockerTools.buildImage {
             config = {
-              WorkingDir = "/plate";
+              WorkingDir = "/plate/";
               Cmd = [
-                "bun"
-                "prod"
+                "/bin/start"
               ];
             };
 
@@ -61,7 +74,9 @@ nilla.create (
               paths = [
                 bun
                 bash
-                config.packages.plateSite.result
+                nodejs_24
+                config.packages.plateSite.result."x86_64-linux"
+                config.packages.plateRunScript.result."aarch64-linux"
               ];
 
               pathsToLink = [
