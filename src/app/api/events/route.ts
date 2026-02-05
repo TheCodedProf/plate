@@ -1,8 +1,9 @@
-import { auth } from "@/lib/auth";
 import db, { users } from "@db";
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+
+import { auth } from "@/lib/auth";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function GET(_request: Request) {
@@ -15,6 +16,7 @@ export async function GET(_request: Request) {
   }
 
   const events = await db.query.users.findFirst({
+    where: eq(users.id, session.user.id),
     with: {
       calendars: {
         with: {
@@ -22,14 +24,11 @@ export async function GET(_request: Request) {
         },
       },
     },
-    where: eq(users.id, session.user.id),
   });
 
   return NextResponse.json(
-    events?.calendars
-      .map((calendar) =>
-        calendar.events.map((event) => ({ ...event, color: calendar.color })),
-      )
-      .flat() ?? [],
+    events?.calendars.flatMap((calendar) =>
+      calendar.events.map((event) => ({ ...event, color: calendar.color })),
+    ) ?? [],
   );
 }

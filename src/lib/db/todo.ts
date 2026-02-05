@@ -1,13 +1,14 @@
-import { pgTable, uuid, text, timestamp, boolean } from "drizzle-orm/pg-core";
-import { users } from "./users";
 import { relations } from "drizzle-orm";
+import { boolean, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+
+import { users } from "./users";
 
 export const todos = pgTable("todos", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  title: text("title").notNull(),
+  completed: boolean("completed").default(false),
   description: text("description"),
   dueDate: timestamp("due_date"),
-  completed: boolean("completed").default(false),
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
   userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
 });
 

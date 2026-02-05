@@ -1,8 +1,9 @@
-import { auth } from "@/lib/auth";
 import db from "@db";
+import { calendars as calendarDb } from "@db";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { calendars as calendarDb } from "@db";
+
+import { auth } from "@/lib/auth";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function GET(_request: Request) {
@@ -23,10 +24,10 @@ export async function GET(_request: Request) {
       await db
         .insert(calendarDb)
         .values({
-          userId: session.user.id,
-          name: "Default calendar",
           color: "lavender",
           default: true,
+          name: "Default calendar",
+          userId: session.user.id,
         })
         .returning(),
     );

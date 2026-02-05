@@ -1,9 +1,12 @@
 "use client";
+// Needed for rendering DateTime in the correct TZ
+
+import { calendarEvents, settings as settingsModel } from "@db";
 import { Dispatch, SetStateAction, useMemo } from "react";
+
 import { CalendarEvent } from "../lib/CalendarEvent";
 import { dateString, formatTimeLocal, getEventsByDay } from "../lib/time";
 import { DaySummary } from "./DaySummary";
-import { calendarEvents, settings as settingsModel } from "@db";
 
 export const getWeek = (date: Date, weekStart = 0): number => {
   const d = new Date(date);
@@ -19,7 +22,7 @@ export const getWeek = (date: Date, weekStart = 0): number => {
   return (
     1 +
     Math.round(
-      (nearestWeekStart.getTime() - firstWeekStart.getTime()) / 604800000,
+      (nearestWeekStart.getTime() - firstWeekStart.getTime()) / 604_800_000,
     )
   );
 };
@@ -40,8 +43,8 @@ export const getWeekStartDate = (
 
 interface DayCell {
   date: Date;
-  inMonth: boolean;
   events?: (CalendarEvent & { color: string })[];
+  inMonth: boolean;
 }
 
 const buildWeek = (
@@ -54,8 +57,8 @@ const buildWeek = (
     date.setDate(date.getDate() + i);
     cells.push({
       date,
-      inMonth: date.getMonth() === startDate.getMonth(),
       events: events.get(dateString(date)),
+      inMonth: date.getMonth() === startDate.getMonth(),
     });
   }
   return cells;
@@ -63,16 +66,16 @@ const buildWeek = (
 
 export default function WeekView({
   events,
-  settings,
-  view,
-  setView,
   openModal,
+  settings,
+  setView,
+  view,
 }: {
   events: (CalendarEvent & { color: string })[];
-  settings: typeof settingsModel.$inferSelect;
-  view: Date;
-  setView: Dispatch<SetStateAction<Date>>;
   openModal: (event?: typeof calendarEvents.$inferInsert) => void;
+  settings: typeof settingsModel.$inferSelect;
+  setView: Dispatch<SetStateAction<Date>>;
+  view: Date;
 }) {
   const eventsByDay = useMemo(() => {
     return getEventsByDay(events);
@@ -92,57 +95,66 @@ export default function WeekView({
   }, [view, eventsByDay]);
 
   return (
-    <div className="w-full h-full flex">
-      <div className="grid grid-cols-7 overflow-scroll overscroll-none no-scrollbar w-7/10 divide-ctp-surface2 divide-x">
+    <div className="flex min-h-full w-full grow">
+      <div className="no-scrollbar divide-ctp-surface2 grid min-h-max w-7/10 grid-cols-7 divide-x overflow-scroll overscroll-none">
         {week.map((day, index) => {
           return (
             <div
+              className={`text-ctp-text flex h-full min-h-max flex-col items-center ${view.getDay() === day.date.getDay() ? "bg-ctp-surface0" : ""}`}
               key={index}
-              className={`min-h-full h-fit flex flex-col text-ctp-text items-center ${view.getDay() === day.date.getDay() ? "bg-ctp-surface0" : ""}`}
               onClick={() => setView(day.date)}
             >
-              <div className="sticky top-0 bg-ctp-surface2 w-full text-center flex flex-col">
+              <div className="bg-ctp-surface2 sticky top-0 flex w-full flex-col text-center">
                 <p>
                   {day.date.toLocaleDateString("en-US", { weekday: "long" })}
                 </p>
                 <p>
                   {day.date.toLocaleDateString("en-US", {
-                    month: "long",
                     day: "numeric",
+                    month: "long",
                   })}
                 </p>
               </div>
-              <div className="flex flex-col items-center w-full px-1 pt-1 gap-1">
-                {day.events?.map((event, index) => (
-                  <div
-                    key={index}
-                    className={`p-1 rounded-md w-full text-xs text-ctp-base bg-ctp-${event.color}`}
-                  >
-                    {event.allDay
-                      ? "All Day"
-                      : `${
-                          dateString(day.date) == dateString(event.start)
-                            ? formatTimeLocal(event.start)
-                            : "..."
-                        }–${
-                          dateString(day.date) == dateString(event.end)
-                            ? formatTimeLocal(event.end)
-                            : "..."
-                        }`}
-                    <br />
-                    {event.title}
-                  </div>
-                ))}
+              <div className="flex max-h-full w-full flex-col items-center gap-1 px-1 pt-1 text-ellipsis whitespace-nowrap">
+                {day.events
+                  ?.map((event) => {
+                    const newEvent: typeof event & {
+                      endTime?: string;
+                      startTime?: string;
+                    } = { ...event };
+                    newEvent.startTime =
+                      dateString(day.date) == dateString(event.start)
+                        ? formatTimeLocal(event.start, settings.timeFormat)
+                        : "...";
+                    newEvent.endTime =
+                      dateString(day.date) == dateString(event.end)
+                        ? formatTimeLocal(event.end, settings.timeFormat)
+                        : "...";
+                    return newEvent;
+                  })
+                  .map((event, index) => (
+                    <div
+                      className={`text-ctp-base w-full rounded-md p-1 text-xs bg-ctp-${event.color} truncate`}
+                      key={index}
+                    >
+                      {event.allDay
+                        ? "All Day"
+                        : `${event.startTime ?? ""}–${event.endTime ?? ""}`}
+                      <br />
+                      {event.title}
+                    </div>
+                  ))}
               </div>
             </div>
           );
         })}
       </div>
-      <div className="w-3/10 border-l border-ctp-overlay2 p-4">
+      <div className="border-ctp-overlay2 w-3/10 border-l p-4">
         <DaySummary
-          selectedEvents={selectedEvents}
-          view={view}
           openModal={openModal}
+          selectedEvents={selectedEvents}
+          settings={settings}
+          view={view}
         />
       </div>
     </div>

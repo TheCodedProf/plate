@@ -1,0 +1,19 @@
+name: CI
+on:
+ pull_request:
+  branches:
+    - main
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./src
+    steps:
+    - uses: actions/checkout@v4
+    - uses: oven-sh/setup-bun@v2
+    - name: Install modules
+      run: bun i
+    - name: Run ESLint
+      run: bun lint

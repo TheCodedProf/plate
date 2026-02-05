@@ -1,150 +1,89 @@
 "use client";
-import { ReactNode, useMemo } from "react";
+// Needed for rendering DateTime in the correct TZ
+
+import { calendarEvents, settings as settingsModel } from "@db";
+import { createRef, ReactNode, Ref, useEffect, useMemo } from "react";
+
 import { CalendarEvent } from "../lib/CalendarEvent";
 import { checkOverlap } from "../lib/time";
 import {
-  day,
-  hour,
-  truncDate,
   addDates,
-  scaleDate,
+  almost_day,
+  day,
   formatTime,
   formatTimeLocal,
+  hour,
+  truncDate,
 } from "../lib/time";
-import { settings as settingsModel } from "@db";
-import { calendarEvents } from "@/lib/db";
 
-function fMapPerc(val: number, min: number, max: number): number {
-  return Math.max(0.0, Math.min(1.0, (val - min) / (max - min)));
-}
+interface RelativeEvent {
+  event: CalendarEvent & { color: string };
+  start: number;
+  // eslint-disable-next-line perfectionist/sort-interfaces
+  end: number;
 
-function DayEvent(
-  event: CalendarEvent & { color: string },
-  top: number,
-  left: number,
-  bottom: number,
-  key: number,
-  view: Date,
-  openModal: (event: typeof calendarEvents.$inferSelect) => void,
-): ReactNode {
-  return (
-    <button
-      onClick={() => openModal(event)}
-      className={`rounded text-ctp-base hover:bg-ctp-surface2 px-2 cursor-pointer text-left align-text-top m-2 bg-ctp-${event.color}`}
-      key={key}
-      style={{
-        gridColumnStart: left,
-        gridColumnEnd: "span 1",
-        gridRowStart: top,
-        gridRowEnd: bottom,
-        minHeight: "min-content",
-      }}
-    >
-      <b>{event.title}</b>
-      <br></br>
-      {formatTime(event, view)}
-    </button>
-  );
-}
-
-function TimeMarker(
-  key: string,
-  text: string,
-  start: number,
-  end: number,
-  columns: number,
-  time_start: Date,
-  time_end: Date,
-  openModal: (
-    initialEvent?: Partial<typeof calendarEvents.$inferInsert>,
-  ) => void,
-): [ReactNode, ReactNode] {
-  return [
-    /* time text */
-    <div
-      key={key}
-      style={{
-        gridRowStart: start,
-        gridRowEnd: end,
-        gridColumn: 1,
-        zIndex: 1,
-      }}
-    >
-      {text}
-    </div>,
-    /* lines */
-    <div
-      key={`${key}-line`}
-      className="border-t-2 border-t-ctp-surface1 hover:bg-ctp-surface1"
-      style={{
-        gridRowStart: start,
-        gridRowEnd: end,
-        gridColumnStart: 1,
-        gridColumnEnd: columns + 2,
-        width: "100%",
-      }}
-      onClick={() => {
-        openModal({ start: time_start, end: time_end });
-      }}
-    ></div>,
-  ];
+  /* computed later  */
+  start_slot: number;
+  // eslint-disable-next-line perfectionist/sort-interfaces
+  end_slot: number;
+  // eslint-disable-next-line perfectionist/sort-interfaces
+  column: number;
 }
 
 export default function DayView({
   events,
-  view,
-  settings,
   openModal,
+  settings,
+  view,
 }: {
   events: Array<CalendarEvent & { color: string }>;
-  view: Date;
-  settings: typeof settingsModel.$inferSelect;
   openModal: (
     initialEvent?: Partial<typeof calendarEvents.$inferInsert>,
   ) => void;
+  settings: typeof settingsModel.$inferSelect;
+  view: Date;
 }) {
   /* get visible timespan from selected date */
   const timespan: [Date, Date] = useMemo(() => {
-    const ts = [
-      addDates(truncDate(view), scaleDate(hour, settings.dayStartHour)),
-    ];
+    const ts = [addDates(truncDate(view), new Date(0))];
     ts.push(addDates(ts[0], day));
     return ts as [Date, Date];
-  }, [view, settings.dayStartHour]);
+  }, [view]);
 
-  interface relativeEvent {
-    event: CalendarEvent & { color: string };
-    start: number;
-    end: number;
-    start_slot: number;
-    end_slot: number;
-    column: number;
-  }
+  /* required to avoid displaying events that start at midnight */
+  const timespan_filter: [Date, Date] = [
+    timespan[0],
+    addDates(timespan[0], almost_day),
+  ];
+
   /* filter out events that are not visible, and convert times to be relative *
    * to the visible timespan                                                  */
-  const filtered_events: Array<relativeEvent> = events
-    .filter((event) => checkOverlap(timespan, [event.start, event.end]))
+  const filtered_events: Array<RelativeEvent> = events
+    .filter((event) => checkOverlap(timespan_filter, [event.start, event.end]))
     .map((event) => {
-      const relEvent: relativeEvent = {
+      const relEvent: RelativeEvent = {
         event,
-        start: fMapPerc(
-          Number(event.start),
-          Number(timespan[0]),
-          Number(timespan[1]),
-        ),
+        // eslint-disable-next-line perfectionist/sort-objects
         end: fMapPerc(
           Number(event.end),
           Number(timespan[0]),
           Number(timespan[1]),
         ),
+        start: fMapPerc(
+          Number(event.start),
+          Number(timespan[0]),
+          Number(timespan[1]),
+        ),
         start_slot: 0,
+        // eslint-disable-next-line perfectionist/sort-objects
         end_slot: 0,
+        // eslint-disable-next-line perfectionist/sort-objects
         column: 0,
       };
       return relEvent;
     });
   /* sort by start times then end times */
-  filtered_events.sort((a: relativeEvent, b: relativeEvent) => {
+  filtered_events.sort((a: RelativeEvent, b: RelativeEvent) => {
     if (a.start == b.start) return a.end - b.end;
     return a.start - b.start;
   });
@@ -152,22 +91,18 @@ export default function DayView({
   const lines_per_day: number = 24;
 
   /* compile a list of all event times */
-  const time_splits: Array<number> = [0.0, 1.0];
-  for (let i: number = 1; i < lines_per_day; i++)
-    time_splits.push(i / lines_per_day);
-  filtered_events.forEach((event) => {
-    if (!time_splits.includes(event.start)) time_splits.push(event.start);
-    if (!time_splits.includes(event.end)) time_splits.push(event.end);
-  });
-  time_splits.sort();
+  const time_splits: Array<number> = getTimeSplits(
+    filtered_events,
+    lines_per_day,
+  );
 
-  const line_markers: Array<number> = [];
+  const line_markers: Array<number> = []; // the indexes of the time splits that should have markers
   /* arrange the events on the grid */
-  const active_events: Array<relativeEvent | null> = [];
+  const active_events: Array<null | RelativeEvent> = [];
   let i: number = 1;
   for (const time of time_splits) {
     /* remove all of the ending events */
-    const end_events: Array<relativeEvent> = filtered_events.filter(
+    const end_events: Array<RelativeEvent> = filtered_events.filter(
       (event) => event.end == time,
     );
     for (const event of end_events) {
@@ -177,7 +112,7 @@ export default function DayView({
     }
 
     /* push all of the starting events */
-    const start_events: Array<relativeEvent> = filtered_events.filter(
+    const start_events: Array<RelativeEvent> = filtered_events.filter(
       (event) => event.start == time,
     );
     for (const event of start_events) {
@@ -191,33 +126,25 @@ export default function DayView({
     }
 
     /* add time interval marker */
-    if ((time * lines_per_day) % 1.0 == 0.0) line_markers.push(i);
+    if (Number.isInteger(time * lines_per_day)) line_markers.push(i);
 
     i++;
   }
   const grid_cols: number = Math.max(active_events.length, 1);
 
   /* convert from positions to sizes */
-  let grid_row_str: string = "";
-  let prev_grid_row: number = 0;
-  for (const row of time_splits.slice(1)) {
-    const row_size: number = row - prev_grid_row;
-    prev_grid_row = row;
-    grid_row_str += ` ${Math.round(row_size * 100)}fr`;
-  }
+  const grid_row_str: string = createRowString(time_splits);
 
   /* the timestamps on the side of the timeline */
-  const timestamps: Array<Date> = [];
-  let latest_timestamp: number = Number(timespan[0]);
-  while (latest_timestamp < Number(timespan[1])) {
-    timestamps.push(new Date(latest_timestamp));
-    latest_timestamp += Number(hour);
-  }
+  const timestamps: Array<Date> = createTimeStamps(lines_per_day, timespan);
+
+  const refs = timestamps.map(() => createRef<HTMLDivElement>());
 
   const time_marks: Array<ReactNode> = timestamps.map((time, i) =>
     TimeMarker(
       `marker-${i}`,
-      formatTimeLocal(time),
+      refs[i],
+      formatTimeLocal(time, settings.timeFormat),
       line_markers[i],
       line_markers[i + 1],
       grid_cols,
@@ -231,14 +158,11 @@ export default function DayView({
   const event_grid: ReactNode = (
     <div
       //onLoad={() => scrollTo({ top: 100, behavior: "instant" })}
-      className="w-full z-1 grid p-1 min-h-max items-stretch"
-      style={Object.assign(
-        {
-          gridAutoColumns: "max-content " + "1fr ".repeat(grid_cols),
-          gridTemplateRows: grid_row_str,
-        },
-        !filtered_events.length ? { height: "100%" } : {},
-      )}
+      className="z-1 grid min-h-max w-full items-stretch p-1"
+      style={{
+        gridAutoColumns: "max-content " + "1fr ".repeat(grid_cols),
+        gridTemplateRows: grid_row_str,
+      }}
     >
       {time_marks}
       {filtered_events.map((event, i) => {
@@ -250,13 +174,151 @@ export default function DayView({
           i,
           view,
           openModal,
+          settings.timeFormat,
         );
       })}
     </div>
   );
+
+  useEffect(() => {
+    const ref = refs[settings.dayStartHour];
+    console.log(ref);
+    ref.current?.scrollIntoView({
+      behavior: "instant",
+    });
+  }, [view, refs, settings.dayStartHour]);
+
   return (
-    <div className="overscroll-none h-full w-full overflow-y-scroll">
+    <div className="h-full w-full grow overflow-y-scroll overscroll-none">
       {event_grid}
     </div>
   );
+}
+
+/* * * * * * * * * * *
+ * Utility Functions *
+ * * * * * * * * * * */
+
+function createRowString(time_splits: Array<number>): string {
+  let row_str: string = "";
+  let prev_row: number = time_splits[0];
+  for (const row of time_splits.slice(1)) {
+    const row_size: number = row - prev_row;
+    prev_row = row;
+    row_str += ` ${Math.round(row_size * 100)}fr`;
+  }
+  return row_str;
+}
+
+function createTimeStamps(count: number, timespan: [Date, Date]): Array<Date> {
+  const span: [number, number] = [Number(timespan[0]), Number(timespan[1])];
+  const diff: number = span[1] - span[0];
+
+  const timestamps: Array<Date> = [];
+  let latest_timestamp: number = span[0];
+  while (latest_timestamp < span[1]) {
+    timestamps.push(new Date(latest_timestamp));
+    latest_timestamp += diff / count;
+  }
+  return timestamps;
+}
+
+function fMapPerc(val: number, min: number, max: number): number {
+  return Math.max(0, Math.min(1, (val - min) / (max - min)));
+}
+
+function getTimeSplits(
+  events: Array<RelativeEvent>,
+  fixed_splits: number,
+): Array<number> {
+  // eslint-disable-next-line unicorn/no-zero-fractions
+  const time_splits: Array<number> = [0.0, 1.0];
+  for (let i: number = 1; i < fixed_splits; i++)
+    time_splits.push(i / fixed_splits);
+  for (const event of events) {
+    if (!time_splits.includes(event.start)) time_splits.push(event.start);
+    if (!time_splits.includes(event.end)) time_splits.push(event.end);
+  }
+  return time_splits.toSorted();
+}
+
+/* * * * * * * *
+ * ReactNodes  *
+ * * * * * * * */
+
+// eslint-disable-next-line perfectionist/sort-modules
+function DayEvent(
+  event: CalendarEvent & { color: string },
+  top: number,
+  left: number,
+  bottom: number,
+  key: number,
+  view: Date,
+  openModal: (event: typeof calendarEvents.$inferSelect) => void,
+  timeFormat: string,
+): ReactNode {
+  return (
+    <button
+      className={`text-ctp-base rounded hover:bg-ctp-${event.color}-200 m-2 cursor-pointer px-2 text-left align-text-top bg-ctp-${event.color}`}
+      key={key}
+      onClick={() => openModal(event)}
+      style={{
+        gridColumnEnd: "span 1",
+        gridColumnStart: left,
+        gridRowEnd: bottom,
+        gridRowStart: top,
+        minHeight: "min-content",
+      }}
+    >
+      <b>{event.title}</b>
+      <br></br>
+      {formatTime(event, view, timeFormat)}
+    </button>
+  );
+}
+
+function TimeMarker(
+  key: string,
+  ref: Ref<HTMLDivElement>,
+  text: string,
+  start: number,
+  end: number,
+  columns: number,
+  time_start: Date,
+  time_end: Date,
+  openModal: (
+    initialEvent?: Partial<typeof calendarEvents.$inferInsert>,
+  ) => void,
+): [ReactNode, ReactNode] {
+  return [
+    /* time text */
+    <div
+      className="text-right"
+      key={key}
+      style={{
+        gridColumn: 1,
+        gridRowEnd: end,
+        gridRowStart: start,
+        zIndex: 1,
+      }}
+    >
+      {text}
+    </div>,
+    /* lines */
+    <div
+      className="border-t-ctp-surface1 hover:bg-ctp-surface1 min-h-12 border-t-2"
+      key={`${key}-line`}
+      onClick={() => {
+        openModal({ end: time_end, start: time_start });
+      }}
+      ref={ref}
+      style={{
+        gridColumnEnd: columns + 2,
+        gridColumnStart: 1,
+        gridRowEnd: end,
+        gridRowStart: start,
+        width: "100%",
+      }}
+    ></div>,
+  ];
 }

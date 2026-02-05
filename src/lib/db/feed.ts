@@ -1,5 +1,6 @@
 import { relations } from "drizzle-orm";
-import { pgTable, uuid, text } from "drizzle-orm/pg-core";
+import { pgTable, text, uuid } from "drizzle-orm/pg-core";
+
 import { users } from "./users";
 
 export const feeds = pgTable("feeds", {

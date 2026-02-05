@@ -1,0 +1,2 @@
+CREATE TYPE "public"."calendar_display_modes" AS ENUM('day', 'week', 'month');--> statement-breakpoint
+ALTER TABLE "settings" ADD COLUMN "default_calendar_display" "calendar_display_modes" DEFAULT 'month' NOT NULL;

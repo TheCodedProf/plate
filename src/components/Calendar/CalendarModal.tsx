@@ -1,45 +1,39 @@
 import { useState } from "react";
-import { Button } from "../lib/Button";
-import { calendars } from "@/lib/db";
+
 import { authClient } from "@/lib/auth-client";
+import { calendars } from "@/lib/db";
+
+import { Button } from "../lib/Button";
 
 interface Props {
-  calendar?: typeof calendars.$inferInsert;
+  calendar?: null | typeof calendars.$inferInsert;
   setModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  setUpdate: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const deleteCalendar = (calendarId: string | undefined) => {
   if (!calendarId) return;
 
-  fetch(`/api/calendar`, {
+  fetch(`/api/calendar?id=${calendarId}`, {
     method: "DELETE",
-    body: JSON.stringify({ id: calendarId }),
   });
 };
 
-async function upsertCalendar(calendar: typeof calendars.$inferInsert) {
-  let method: string;
-  if (Object.keys(calendar).includes("id")) {
-    method = "PUT";
-  } else {
-    method = "POST";
-  }
-  const res = await fetch("/api/calendar", {
-    method,
-    body: JSON.stringify(calendar),
-  });
-  return res.json();
-}
-
-export function CalendarModal({ setModalOpen, calendar: calendarProp }: Props) {
+export function CalendarModal({
+  calendar: calendarProp,
+  setModalOpen,
+  setUpdate,
+}: Props) {
   const session = authClient.useSession();
   const [calendar, setCalendar] = useState<typeof calendars.$inferInsert>(
     calendarProp ?? {
-      userId: !session.isPending ? session.data!.user.id : "",
-      name: "",
       default: false,
+      name: "",
+      userId: session.isPending ? "" : session.data!.user.id,
     },
   );
+
+  console.log(calendarProp);
 
   const editorMode = calendarProp ? "edit" : "create";
 
@@ -49,15 +43,15 @@ export function CalendarModal({ setModalOpen, calendar: calendarProp }: Props) {
         className="absolute inset-0 bg-black/50"
         onClick={() => setModalOpen(false)}
       />
-      <div className="relative w-130 max-w-[92vw] rounded-lg border border-ctp-overlay2 bg-ctp-surface0 p-4">
+      <div className="border-ctp-overlay2 bg-ctp-surface0 relative w-130 max-w-[92vw] rounded-lg border p-4">
         <div className="flex items-start justify-between gap-4">
-          <div className="text-lg font-semibold text-ctp-text">
+          <div className="text-ctp-text text-lg font-semibold">
             {editorMode === "create" ? "Create calendar" : "Edit calendar"}
           </div>
           <button
+            aria-label="Close"
             className="text-ctp-subtext0 hover:text-ctp-text cursor-pointer"
             onClick={() => setModalOpen(false)}
-            aria-label="Close"
           >
             ✕
           </button>
@@ -65,37 +59,37 @@ export function CalendarModal({ setModalOpen, calendar: calendarProp }: Props) {
 
         <div className="mt-3 space-y-3">
           <div className="space-y-1">
-            <label className="text-xs text-ctp-subtext1">Title</label>
+            <label className="text-ctp-subtext1 text-xs">Title</label>
             <input
-              className="w-full rounded border border-ctp-overlay2 bg-ctp-surface1 px-2 py-1 text-ctp-text"
-              value={calendar?.name ?? ""}
+              className="border-ctp-overlay2 bg-ctp-surface1 text-ctp-text w-full rounded border px-2 py-1"
               onChange={(e) =>
                 setCalendar((d) => ({ ...d, name: e.target.value }))
               }
+              value={calendar?.name ?? ""}
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs text-ctp-subtext1">Description</label>
+            <label className="text-ctp-subtext1 text-xs">Description</label>
             <textarea
-              className="w-full min-h-22 rounded border border-ctp-overlay2 bg-ctp-surface1 px-2 py-1 text-ctp-text"
-              value={calendar?.description ?? ""}
+              className="border-ctp-overlay2 bg-ctp-surface1 text-ctp-text min-h-22 w-full rounded border px-2 py-1"
               onChange={(e) =>
                 setCalendar((d) =>
                   d ? { ...d, description: e.target.value } : d,
                 )
               }
+              value={calendar?.description ?? ""}
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs text-ctp-subtext1">Color</label>
+            <label className="text-ctp-subtext1 text-xs">Color</label>
             <select
-              className="w-full rounded border border-ctp-overlay2 bg-ctp-surface1 px-2 py-1 text-ctp-text h-8.5"
-              value={calendar?.color ?? "lavendar"}
+              className="border-ctp-overlay2 bg-ctp-surface1 text-ctp-text h-8.5 w-full rounded border px-2 py-1"
               onChange={(e) =>
                 setCalendar((d) => (d ? { ...d, color: e.target.value } : d))
               }
+              value={calendar?.color ?? "lavender"}
             >
               <option value="rosewater">Rosewater</option>
               <option value="flamingo">Flamingo</option>
@@ -115,25 +109,32 @@ export function CalendarModal({ setModalOpen, calendar: calendarProp }: Props) {
           </div>
 
           <div className="flex items-center gap-2">
-            <label className="text-xs text-ctp-subtext1">Default</label>
+            <label className="text-ctp-subtext1 text-xs">Default</label>
             <input
-              type="checkbox"
               checked={calendar.default}
               onChange={(e) =>
                 setCalendar((d) =>
                   d ? { ...d, default: e.target.checked } : d,
                 )
               }
+              type="checkbox"
             />
           </div>
         </div>
 
-        <div className="flex justify-between items-center">
+        <div className="flex items-center justify-between">
           <div className="mt-4">
             <Button
-              onClick={() => deleteCalendar(calendarProp?.id)}
+              disabled={
+                !Object.keys(calendarProp ?? {}).includes("id") ||
+                calendar.default
+              }
+              onClick={() => {
+                deleteCalendar(calendarProp?.id);
+                setModalOpen(false);
+                setUpdate((prev) => !prev);
+              }}
               type="danger"
-              disabled={!calendarProp}
             >
               Delete
             </Button>
@@ -142,12 +143,16 @@ export function CalendarModal({ setModalOpen, calendar: calendarProp }: Props) {
           <div className="mt-4 flex justify-end gap-2">
             <Button onClick={() => setModalOpen(false)}>Cancel</Button>
             <Button
-              type="success"
+              disabled={
+                !String(calendar?.name ?? "").trim() ||
+                JSON.stringify(calendar) === JSON.stringify(calendarProp ?? {})
+              }
               onClick={() => {
                 upsertCalendar(calendar!);
                 setModalOpen(false);
+                setUpdate((prev) => !prev);
               }}
-              disabled={!String(calendar?.name ?? "").trim()}
+              type="success"
             >
               Save
             </Button>
@@ -156,4 +161,12 @@ export function CalendarModal({ setModalOpen, calendar: calendarProp }: Props) {
       </div>
     </div>
   );
+}
+
+async function upsertCalendar(calendar: typeof calendars.$inferInsert) {
+  const res = await fetch("/api/calendar", {
+    body: JSON.stringify(calendar),
+    method: Object.keys(calendar).includes("id") ? "PUT" : "POST",
+  });
+  return res.json();
 }
